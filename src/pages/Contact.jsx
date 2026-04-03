@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import LocationMap from '../components/LocationMap';
-import { Mail, Phone, MapPin, Send, MessageSquare } from 'lucide-react';
+import { Mail, MapPin, Send, MessageSquare } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
+import Swal from 'sweetalert2';
 
 const Contact = () => {
   const { content, addMessage } = useSite();
   const c = content.contact;
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
-  const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -19,10 +19,24 @@ const Contact = () => {
     setSending(false);
     
     if(success) {
-      setSent(true);
       setFormData({ name: '', email: '', message: '' });
+      Swal.fire({
+        icon: 'success',
+        title: '¡Mensaje enviado!',
+        text: 'Te responderemos lo antes posible.',
+        confirmButtonColor: '#d4af37',
+        background: 'rgba(15, 23, 42, 0.95)',
+        color: '#fff',
+      });
     } else {
-      alert('Error al enviar el mensaje. Intenta de nuevo.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo enviar el mensaje. Intenta de nuevo.',
+        confirmButtonColor: '#ef4444',
+        background: 'rgba(15, 23, 42, 0.95)',
+        color: '#fff',
+      });
     }
   };
 
@@ -37,7 +51,7 @@ const Contact = () => {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1fr)', gap: '4rem', alignItems: 'start' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1fr)', gap: '4rem', alignItems: 'start' }}>
 
         {/* Contact Info & Map */}
         <div className="animate-fade-up delay-100" style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
@@ -72,16 +86,9 @@ const Contact = () => {
 
         {/* Form */}
         <div className="glass-card animate-fade-up delay-200" style={{ position: 'sticky', top: '120px' }}>
-          {sent && (
-            <div style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', borderRadius: '12px', padding: '1rem', marginBottom: '1rem', textAlign: 'center' }}>
-              <p style={{ color: '#10b981', fontWeight: 'bold' }}>¡Mensaje enviado con éxito!</p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Te responderemos pronto.</p>
-              <button type="button" onClick={() => setSent(false)} style={{ marginTop: '0.5rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }}>Cerrar</button>
-            </div>
-          )}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <h3 className="h2-premium" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Escríbenos</h3>
-            {!sent && <p style={{ marginBottom: '1.5rem' }}>¿Buscas una carta específica? ¿Tienes preguntas sobre un producto?</p>}
+            <p style={{ marginBottom: '1.5rem' }}>¿Buscas una carta específica? ¿Tienes preguntas sobre un producto?</p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <label style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-card-secondary)' }}>Nombre</label>
@@ -99,7 +106,7 @@ const Contact = () => {
             </div>
 
             <button type="submit" className="btn-primary" style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }} disabled={sending}>
-              {sent ? '¡Mensaje Enviado!' : sending ? 'Enviando...' : 'Enviar Mensaje'} <Send size={18} />
+              {sending ? 'Enviando...' : 'Enviar Mensaje'} <Send size={18} />
             </button>
           </form>
         </div>
