@@ -642,7 +642,7 @@ export const SiteProvider = ({ children }) => {
       pages, createPage, updatePage, deletePage, movePage,
       products, createProduct, updateProduct, deleteProduct, moveProduct,
       analytics, trackAnalytics,
-      inbox, addMessage, markMessageRead, deleteMessage,
+      inbox, addMessage, markMessageRead, deleteMessage, loadMessages,
       campaigns, createCampaign, updateCampaign, deleteCampaign,
       getActiveCampaign, calculateDiscountedPrice,
       isAuthenticated, login, logout, changePassword,
