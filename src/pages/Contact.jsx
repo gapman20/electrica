@@ -21,7 +21,8 @@ const Contact = () => {
     if(success) {
       setSent(true);
       setFormData({ name: '', email: '', message: '' });
-      setTimeout(() => setSent(false), 4000);
+    } else {
+      alert('Error al enviar el mensaje. Intenta de nuevo.');
     }
   };
 
@@ -71,9 +72,16 @@ const Contact = () => {
 
         {/* Form */}
         <div className="glass-card animate-fade-up delay-200" style={{ position: 'sticky', top: '120px' }}>
+          {sent && (
+            <div style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', borderRadius: '12px', padding: '1rem', marginBottom: '1rem', textAlign: 'center' }}>
+              <p style={{ color: '#10b981', fontWeight: 'bold' }}>¡Mensaje enviado con éxito!</p>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Te responderemos pronto.</p>
+              <button type="button" onClick={() => setSent(false)} style={{ marginTop: '0.5rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }}>Cerrar</button>
+            </div>
+          )}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <h3 className="h2-premium" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Escríbenos</h3>
-            <p style={{ marginBottom: '1.5rem' }}>¿Buscas una carta específica? ¿Tienes preguntas sobre un producto?</p>
+            {!sent && <p style={{ marginBottom: '1.5rem' }}>¿Buscas una carta específica? ¿Tienes preguntas sobre un producto?</p>}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <label style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-card-secondary)' }}>Nombre</label>

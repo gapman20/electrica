@@ -208,7 +208,7 @@ const Admin = () => {
     blogPosts = [], createBlogPost, updateBlogPost, deleteBlogPost, duplicateBlogPost,
     products = [], createProduct, updateProduct, deleteProduct, moveProduct,
     analytics, trackAnalytics,
-    inbox = [], markMessageRead, deleteMessage, logout,
+    inbox = [], markMessageRead, deleteMessage, loadMessages, logout,
     campaigns = [], createCampaign, updateCampaign, deleteCampaign,
     saveContent, resetContent, saveStatus,
   } = useSite();
@@ -241,6 +241,12 @@ const Admin = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
+
+  useEffect(() => {
+    if (active === 'inbox') {
+      loadMessages();
+    }
+  }, [active]);
 
   const handleCardSearch = async () => {
     if (!searchQuery.trim()) return;
