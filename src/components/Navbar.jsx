@@ -57,7 +57,7 @@ const Navbar = () => {
             <CartButton />
           </div>
           <div className="user-menu-mobile">
-            <Link to={user ? '/mi-cuenta' : '/identificarse'} className="user-icon-btn">
+            <Link to={user ? '/mi-cuenta' : '/login'} className="user-icon-btn">
               <User size={22} />
             </Link>
           </div>
@@ -83,7 +83,7 @@ const Navbar = () => {
           ))}
           
           <li className="nav-actions-mobile">
-            <Link to={user ? '/mi-cuenta' : '/identificarse'} className="nav-user-link">
+            <Link to={user ? '/mi-cuenta' : '/login'} className="nav-user-link">
               <User size={20} />
               <span>{user ? user.name : 'Iniciar Sesión'}</span>
             </Link>
@@ -96,7 +96,7 @@ const Navbar = () => {
 
         {/* User login button - Desktop */}
         {!user && (
-          <Link to="/identificarse" className="nav-login-btn">
+          <Link to="/login" className="nav-login-btn">
             <User size={18} />
             <span>Iniciar Sesión</span>
           </Link>
