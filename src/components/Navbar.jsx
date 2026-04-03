@@ -139,9 +139,11 @@ const Navbar = () => {
                     Panel Admin
                   </Link>
                 )}
-                <Link to="/mi-cuenta" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                  Mi Cuenta
-                </Link>
+                {user && !isAdmin && (
+                  <Link to="/mi-cuenta" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                    Mi Cuenta
+                  </Link>
+                )}
                 <button className="dropdown-item" onClick={handleLogout}>
                   Cerrar Sesión
                 </button>
