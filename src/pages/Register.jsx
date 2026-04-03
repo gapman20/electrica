@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { authApi } from '../services/api';
 import Swal from 'sweetalert2';
+import SEO from '../components/SEO';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -61,7 +62,9 @@ const Register = () => {
   };
 
   return (
-    <div className="page">
+    <>
+      <SEO title="Crear Cuenta" description="Regístrate en Adventure TCG para hacer pedidos y obtener ofertas exclusivas" />
+      <div className="page">
       <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: '2rem', fontSize: '0.9rem' }}>
         <ArrowLeft size={16} />
         Volver al inicio
@@ -156,6 +159,7 @@ const Register = () => {
         </p>
       </div>
     </div>
+    </>
   );
 };
 

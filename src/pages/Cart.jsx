@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { ShoppingCart } from 'lucide-react';
 import { getGameValue } from '../services/api';
+import SEO from '../components/SEO';
 
 const Cart = () => {
   const { items, subtotal, itemCount, updateQuantity, removeItem, clearCart } = useCart();
@@ -12,21 +13,26 @@ const Cart = () => {
 
   if (items.length === 0) {
     return (
-      <div className="page">
-        <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-          <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🛒</div>
-          <h1 className="h2-premium">Tu Carrito</h1>
-          <p className="subtitle">Tu carrito está vacío</p>
-          <Link to="/catalogo" className="btn-primary" style={{ marginTop: '2rem', display: 'inline-flex' }}>
-            Ver Catálogo
-          </Link>
+      <>
+        <SEO title="Carrito Vacío" description="Tu carrito de compras está vacío. Explora nuestro catálogo de cartas coleccionables." />
+        <div className="page">
+          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+            <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🛒</div>
+            <h1 className="h2-premium">Tu Carrito</h1>
+            <p className="subtitle">Tu carrito está vacío</p>
+            <Link to="/catalogo" className="btn-primary" style={{ marginTop: '2rem', display: 'inline-flex' }}>
+              Ver Catálogo
+            </Link>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="page cart-page" style={{ paddingBottom: '12rem' }}>
+    <>
+      <SEO title="Carrito de Compras" description="Revisa los productos en tu carrito antes de proceder al pago." />
+      <div className="page cart-page" style={{ paddingBottom: '12rem' }}>
       <h1 className="h2-premium">Tu Carrito ({itemCount} items)</h1>
       
       <div className="cart-page-layout">
@@ -96,6 +102,7 @@ const Cart = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

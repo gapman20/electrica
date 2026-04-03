@@ -3,6 +3,7 @@ import LocationMap from '../components/LocationMap';
 import { Mail, MapPin, Send, MessageSquare } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import Swal from 'sweetalert2';
+import SEO from '../components/SEO';
 
 const Contact = () => {
   const { content, addMessage } = useSite();
@@ -41,7 +42,9 @@ const Contact = () => {
   };
 
   return (
-    <div className="page" style={{ position: 'relative', zIndex: 1 }}>
+    <>
+      <SEO title="Contacto" description="Contáctanos para más información sobre cartas coleccionables, precios y envíos. Estamos para ayudarte." />
+      <div className="page" style={{ position: 'relative', zIndex: 1 }}>
       <div style={{ position: 'absolute', top: '10%', left: '10%', width: '500px', height: '500px', background: 'var(--accent-gold)', filter: 'blur(250px)', opacity: '0.1', borderRadius: '50%', zIndex: -1 }}></div>
 
       <header style={{ textAlign: 'center', marginBottom: '5rem', marginTop: '2rem' }}>
@@ -112,6 +115,7 @@ const Contact = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

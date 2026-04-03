@@ -5,6 +5,7 @@ import { useSite } from '../context/SiteContext';
 import { useUser } from '../context/UserContext';
 import { Lock, Mail, ArrowLeft, User } from 'lucide-react';
 import Swal from 'sweetalert2';
+import SEO from '../components/SEO';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -46,7 +47,9 @@ const Login = () => {
   };
 
   return (
-    <div className="page">
+    <>
+      <SEO title="Iniciar Sesión" description="Inicia sesión en tu cuenta de Adventure TCG para hacer pedidos y ver tu historial" />
+      <div className="page">
       <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: '2rem', fontSize: '0.9rem' }}>
         <ArrowLeft size={16} />
         Volver al inicio
@@ -107,6 +110,7 @@ const Login = () => {
         </p>
       </div>
     </div>
+    </>
   );
 };
 
