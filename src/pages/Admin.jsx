@@ -241,12 +241,38 @@ const Admin = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
+  const [prevInboxCount, setPrevInboxCount] = useState(0);
 
   useEffect(() => {
     if (active === 'inbox') {
       loadMessages();
     }
   }, [active]);
+
+  useEffect(() => {
+    if (active !== 'inbox') return;
+    
+    const interval = setInterval(async () => {
+      const prevUnread = inbox.filter(m => !m.read).length;
+      await loadMessages();
+      const newUnread = inbox.filter(m => !m.read).length;
+      
+      if (newUnread > prevUnread) {
+        toast.success(`${newUnread - prevUnread} nuevo${newUnread - prevUnread > 1 ? 's' : ''} mensaje${newUnread - prevUnread > 1 ? 's' : ''} en bandeja`);
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [active, inbox.length]);
+
+  useEffect(() => {
+    if (inbox.length > 0) {
+      const unread = inbox.filter(m => !m.read).length;
+      if (unread > 0) {
+        setTimeout(() => toast.info(`Tienes ${unread} mensaje${unread > 1 ? 's' : ''} sin leer en Bandeja de Entrada`), 1000);
+      }
+    }
+  }, []);
 
   const handleCardSearch = async () => {
     if (!searchQuery.trim()) return;
