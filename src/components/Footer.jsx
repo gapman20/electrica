@@ -6,7 +6,6 @@ import { Instagram, Youtube, Facebook, Sparkles, Sword } from 'lucide-react';
 const Footer = () => {
   const { content } = useSite();
   const social = content.social || {};
-  const isAdmin = localStorage.getItem('is_authenticated') === 'true';
 
   return (
     <footer style={{ background: 'var(--bg-tertiary)', borderTop: '1px solid var(--glass-border)', padding: '4rem 2rem 2rem' }}>
@@ -89,17 +88,6 @@ const Footer = () => {
                 </Link>
               </li>
             ))}
-            {isAdmin && (
-              <li style={{ marginTop: '0.8rem', paddingTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <Link to="/admin"
-                  style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.82rem', opacity: 0.45, display: 'flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s' }}
-                  onMouseEnter={e => { e.currentTarget.style.opacity = 1; e.currentTarget.style.color = 'var(--accent-gold)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.opacity = 0.45; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                >
-                  Panel Admin
-                </Link>
-              </li>
-            )}
           </ul>
         </div>
 

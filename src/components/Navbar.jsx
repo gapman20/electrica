@@ -1,24 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Heart, User } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, Heart, User, Settings } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { useWishlist } from '../context/WishlistContext';
 import CartButton from './CartButton';
 
 const USER_KEY = 'tcg_user';
+const AUTH_KEY = 'is_authenticated';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { itemCount } = useWishlist();
+  const { logout: siteLogout } = useSite();
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const savedUser = localStorage.getItem(USER_KEY);
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    const checkAuth = () => {
+      const savedUser = localStorage.getItem(USER_KEY);
+      const adminAuth = localStorage.getItem(AUTH_KEY) === 'true';
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+      } else {
+        setUser(null);
+      }
+      setIsAdmin(adminAuth);
+    };
+    checkAuth();
+    
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
   useEffect(() => {
@@ -26,11 +40,18 @@ const Navbar = () => {
     setIsDropdownOpen(false);
   }, [location]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('auth_token');
     setUser(null);
+    setIsAdmin(false);
     setIsDropdownOpen(false);
+    await siteLogout();
+    navigate('/');
   };
+
+  const isLoggedIn = user || isAdmin;
 
   const navLinks = [
     { path: '/', name: 'Inicio' },
@@ -57,7 +78,7 @@ const Navbar = () => {
             <CartButton />
           </div>
           <div className="user-menu-mobile">
-            <Link to={user ? '/mi-cuenta' : '/login'} className="user-icon-btn">
+            <Link to={isLoggedIn ? '#' : '/login'} className="user-icon-btn">
               <User size={22} />
             </Link>
           </div>
@@ -83,10 +104,27 @@ const Navbar = () => {
           ))}
           
           <li className="nav-actions-mobile">
-            <Link to={user ? '/mi-cuenta' : '/login'} className="nav-user-link">
-              <User size={20} />
-              <span>{user ? user.name : 'Iniciar Sesión'}</span>
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <div style={{ padding: '0.5rem 1rem', color: 'var(--accent-gold)', fontWeight: 'bold' }}>
+                  {user?.name || 'Admin'}
+                </div>
+                {isAdmin && (
+                  <Link to="/admin" className="nav-user-link" style={{ color: 'var(--accent-gold)' }}>
+                    <Settings size={20} />
+                    <span>Panel Admin</span>
+                  </Link>
+                )}
+                <button onClick={handleLogout} className="nav-user-link" style={{ border: 'none', background: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+                  Cerrar Sesión
+                </button>
+              </>
+            ) : (
+              <Link to="/login" className="nav-user-link">
+                <User size={20} />
+                <span>Iniciar Sesión</span>
+              </Link>
+            )}
           </li>
           
           <li className="nav-cart-item desktop-cart">
@@ -95,21 +133,27 @@ const Navbar = () => {
         </ul>
 
         {/* User login button - Desktop */}
-        {!user && (
+        {!isLoggedIn && (
           <Link to="/login" className="nav-login-btn">
             <User size={18} />
             <span>Iniciar Sesión</span>
           </Link>
         )}
 
-        {user && (
+        {isLoggedIn && (
           <div className="user-dropdown">
             <button className="user-dropdown-trigger" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
               <User size={20} />
-              <span>{user.name}</span>
+              <span>{user?.name || 'Admin'}</span>
             </button>
             {isDropdownOpen && (
               <div className="user-dropdown-menu">
+                {isAdmin && (
+                  <Link to="/admin" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                    <Settings size={16} style={{ marginRight: '8px' }} />
+                    Panel Admin
+                  </Link>
+                )}
                 <Link to="/mi-cuenta" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                   Mi Cuenta
                 </Link>
