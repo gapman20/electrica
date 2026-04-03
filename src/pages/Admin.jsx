@@ -432,6 +432,15 @@ const Admin = () => {
   const deleteCard = async (cardId) => {
     const result = await showDeleteAlert('esta carta');
     if (!result.isConfirmed) return;
+    
+    const card = cards.find(c => c.id === cardId);
+    
+    if (card?.isNew) {
+      setCards(prev => prev.filter(c => c.id !== cardId));
+      if (editingCard === cardId) setEditingCard(null);
+      return;
+    }
+    
     setCards(prev => prev.filter(c => c.id !== cardId));
     try {
       await api.cards.delete(cardId);
