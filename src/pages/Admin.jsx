@@ -182,7 +182,6 @@ const insertFormat = (path, value, formatType, onChange) => {
 const sections = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} /> },
   { id: 'inbox', label: 'Bandeja de Entrada', icon: <Mail size={17} /> },
-  { id: 'pages', label: 'Páginas & Menú', icon: <FileText size={17} /> },
   { id: 'sellados', label: 'Sellados', icon: <Package size={17} /> },
   { id: 'cards', label: 'Cartas Sueltas', icon: <Layers size={17} /> },
   { id: 'campaigns', label: 'Campañas Oferta', icon: <Tag size={17} /> },
@@ -207,7 +206,6 @@ const Admin = () => {
     images, updateImage,
     theme, updateTheme, resetTheme,
     blogPosts = [], createBlogPost, updateBlogPost, deleteBlogPost, duplicateBlogPost,
-    pages = [], createPage, updatePage, deletePage, movePage,
     products = [], createProduct, updateProduct, deleteProduct, moveProduct,
     analytics, trackAnalytics,
     inbox = [], markMessageRead, deleteMessage, logout,
@@ -789,87 +787,6 @@ const Admin = () => {
           </div>
         );
       }
-
-      // ── Pages / Menu ──────────────────────────────────────────────────────
-      case 'pages':
-        return (
-          <div>
-            <h3 style={sectionTitle}><FileText size={20} color="var(--accent-gold)" /> Páginas & Menú</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem' }}>Activa o desactiva las páginas, cambia su nombre en el menú, o crea páginas personalizadas nuevas.</p>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginBottom: '2.5rem' }}>
-              {pages.map((page, i) => (
-                <div key={page.id} style={{ padding: '1.5rem', background: 'var(--glass-bg)', border: `1px solid ${page.active ? 'var(--accent-gold)' : 'var(--glass-border)'}`, borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: '800', fontSize: '1.1rem', color: page.active ? 'white' : 'var(--text-secondary)' }}>{page.name}</span>
-                      {page.isCustom ? 
-                        <span style={{ fontSize: '0.7rem', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold' }}>Personalizada</span> 
-                        : 
-                        <span style={{ fontSize: '0.7rem', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold' }}>Integrada</span>
-                      }
-                    </div>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={() => movePage(i, 'up')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}><ArrowUp size={14} /></button>
-                        <button onClick={() => movePage(i, 'down')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}><ArrowDown size={14} /></button>
-                      </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                        <input type="checkbox" checked={page.active} onChange={e => updatePage(page.id, 'active', e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                        Visible en Menú
-                      </label>
-                      {page.isCustom && (
-                        <button onClick={() => { if(confirm('¿Eliminar esta página?')) deletePage(page.id); }} style={{ background: 'transparent', border: '1px solid #ef444455', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
-                          <Trash2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Eliminar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Nombre en el Menú</label>
-                      <input value={page.name} onChange={e => updatePage(page.id, 'name', e.target.value)} style={inputSt} />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>URL (Ruta)</label>
-                      <input value={page.path} onChange={e => updatePage(page.id, 'path', e.target.value)} style={inputSt} disabled={!page.isCustom} />
-                      {!page.isCustom && <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>La URL de las páginas integradas no se puede cambiar.</p>}
-                    </div>
-                  </div>
-                  
-                  {page.isCustom && (
-                    <div style={{ marginTop: '2rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
-                      <h4 style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)', marginBottom: '1rem', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Contenido Visual</h4>
-                      
-                      <div style={{ marginBottom: '1.2rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Título de la Página</label>
-                        <input value={page.pageTitle || ''} onChange={e => updatePage(page.id, 'pageTitle', e.target.value)} style={{ ...inputSt, fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 'bold' }} placeholder="Ej: Nuestras Ofertas" />
-                      </div>
-                      
-                      <div style={{ marginBottom: '1.2rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Subtítulo o Resumen</label>
-                        <textarea value={page.pageSubtitle || ''} onChange={e => updatePage(page.id, 'pageSubtitle', e.target.value)} rows={2} style={inputSt} />
-                      </div>
-                      
-                      <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Texto Completo (Soporta Markdown Básico)</label>
-                        <Toolbar onFormat={(t) => insertFormat(page.id, page.pageText, t, (p,v) => updatePage(p, 'pageText', v))} />
-                        <textarea value={page.pageText || ''} onChange={e => updatePage(page.id, 'pageText', e.target.value)} rows={6} style={inputSt} />
-                      </div>
-
-                      <ImageUploader label="Imagen Destacada" description="JPG/PNG. Se mostrará junto al texto." value={page.pageImage} onChange={val => updatePage(page.id, 'pageImage', val)} />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            
-            <button onClick={() => createPage()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--glass-bg)', border: '1px dashed var(--glass-border)', borderRadius: '12px', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold', width: '100%', justifyContent: 'center', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-gold)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--glass-border)'}>
-              <Plus size={18} /> Agregar Nueva Página
-            </button>
-          </div>
-        );
 
       // ── Products ─────────────────────────────────────────────────────────
       case 'products':
