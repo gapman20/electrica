@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { UserPlus } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { useUser } from '../context/UserContext';
 import { Lock, Mail, ArrowLeft, User } from 'lucide-react';
@@ -96,6 +97,10 @@ const Login = () => {
             {loading ? 'Verificando...' : 'Iniciar Sesión'}
           </button>
         </form>
+
+        <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+          ¿No tienes cuenta? <Link to="/registro" style={{ color: 'var(--accent-gold)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><UserPlus size={14} /> Regístrate</Link>
+        </p>
       </div>
     </div>
   );
