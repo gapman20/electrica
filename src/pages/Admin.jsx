@@ -241,7 +241,7 @@ const Admin = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
-  const [prevInboxCount, setPrevInboxCount] = useState(0);
+  const prevInboxLength = React.useRef(0);
 
   useEffect(() => {
     if (active === 'inbox') {
@@ -252,26 +252,30 @@ const Admin = () => {
   useEffect(() => {
     if (active !== 'inbox') return;
     
-    const interval = setInterval(async () => {
-      const prevUnread = inbox.filter(m => !m.read).length;
+    const checkNewMessages = async () => {
+      const beforeCount = prevInboxLength.current;
       await loadMessages();
-      const newUnread = inbox.filter(m => !m.read).length;
+      const afterCount = inbox.length;
       
-      if (newUnread > prevUnread) {
-        toast.success(`${newUnread - prevUnread} nuevo${newUnread - prevUnread > 1 ? 's' : ''} mensaje${newUnread - prevUnread > 1 ? 's' : ''} en bandeja`);
+      if (afterCount > beforeCount && beforeCount > 0) {
+        toast.success(`${afterCount - beforeCount} nuevo${afterCount - beforeCount > 1 ? 's' : ''} mensaje${afterCount - beforeCount > 1 ? 's' : ''} en bandeja`);
       }
-    }, 10000);
+      prevInboxLength.current = afterCount;
+    };
+    
+    checkNewMessages();
+    
+    const interval = setInterval(checkNewMessages, 5000);
     
     return () => clearInterval(interval);
-  }, [active, inbox.length]);
+  }, [active]);
 
   useEffect(() => {
-    if (inbox.length > 0) {
-      const unread = inbox.filter(m => !m.read).length;
-      if (unread > 0) {
-        setTimeout(() => toast.info(`Tienes ${unread} mensaje${unread > 1 ? 's' : ''} sin leer en Bandeja de Entrada`), 1000);
-      }
+    const unread = inbox.filter(m => !m.read).length;
+    if (unread > 0) {
+      setTimeout(() => toast.info(`Tienes ${unread} mensaje${unread > 1 ? 's' : ''} sin leer`), 1500);
     }
+    prevInboxLength.current = inbox.length;
   }, []);
 
   const handleCardSearch = async () => {
