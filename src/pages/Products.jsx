@@ -162,7 +162,7 @@ const SealedProductCard = ({ product, onAddToCart }) => {
 const Products = () => {
   const { addItem, itemCount } = useCart();
   
-  const [productsData, setProductsData] = useState(sampleSealedProducts);
+  const [productsData, setProductsData] = useState([]);
   const [selectedGame, setSelectedGame] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [sortBy, setSortBy] = useState('name-asc');
@@ -170,51 +170,30 @@ const Products = () => {
   const [viewMode, setViewMode] = useState('grid');
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const loadProducts = async () => {
       setLoading(true);
+      setError(false);
       try {
         const products = await productApi.getAll();
-        if (products && products.length > 0) {
-          setProductsData(products.map(product => ({
-            ...product,
-            image: product.imageUrl,
-            game: typeof product.game === 'object' ? product.game.name : product.game,
-            priceDisplay: formatPrice(product.price)
-          })));
-        }
+        setProductsData(products.map(product => ({
+          ...product,
+          image: product.imageUrl,
+          game: typeof product.game === 'object' ? product.game.name : product.game,
+          priceDisplay: formatPrice(product.price)
+        })));
       } catch (e) {
         console.error('Error loading products from API:', e);
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
 
     loadProducts();
-    
-    const handleStorageChange = (e) => {
-      if (e.key === SELLADOS_KEY) {
-        try {
-          const stored = localStorage.getItem(SELLADOS_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setProductsData(parsed.map(normalizeSealedProduct));
-            }
-          }
-        } catch (err) {
-          console.error('Error loading sellados from localStorage:', err);
-        }
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [SELLADOS_KEY]);
+  }, []);
 
   const products = useMemo(() => {
     let filtered = [...productsData];
@@ -361,7 +340,21 @@ const Products = () => {
         </div>
         
         {/* Products Grid */}
-        {products.length > 0 ? (
+        {loading ? (
+          <div className="catalog-empty">
+            <span className="empty-icon">⏳</span>
+            <h3>Cargando productos...</h3>
+          </div>
+        ) : error ? (
+          <div className="catalog-empty">
+            <span className="empty-icon">⚠️</span>
+            <h3>No se pudo cargar los productos</h3>
+            <p>Revisa tu conexión e intenta de nuevo</p>
+            <button className="btn-primary" onClick={() => window.location.reload()}>
+              Reintentar
+            </button>
+          </div>
+        ) : products.length > 0 ? (
           <div className={`catalog-products ${viewMode}`}>
             {products.map(product => (
               <SealedProductCard 
@@ -374,11 +367,8 @@ const Products = () => {
         ) : (
           <div className="catalog-empty">
             <span className="empty-icon">📦</span>
-            <h3>No se encontraron productos</h3>
-            <p>Intenta con otros filtros</p>
-            <button className="btn-primary" onClick={clearFilters}>
-              Limpiar filtros
-            </button>
+            <h3>No hay productos disponibles</h3>
+            <p>Revisa el backend y la base de datos</p>
           </div>
         )}
       </div>

@@ -171,7 +171,7 @@ const SingleCard = ({ card, onAddToCart }) => {
 const Catalog = () => {
   const { addItem } = useCart();
   
-  const [cardsData, setCardsData] = useState(sampleSingles);
+  const [cardsData, setCardsData] = useState([]);
   const [selectedGame, setSelectedGame] = useState('all');
   const [selectedRarity, setSelectedRarity] = useState('all');
   const [sortBy, setSortBy] = useState('name-asc');
@@ -179,51 +179,30 @@ const Catalog = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const loadCards = async () => {
       setLoading(true);
+      setError(false);
       try {
         const cards = await cardApi.getAll();
-        if (cards && cards.length > 0) {
-          setCardsData(cards.map(card => ({
-            ...card,
-            image: card.imageUrl,
-            game: typeof card.game === 'object' ? card.game.name : card.game,
-            priceDisplay: formatPrice(card.price)
-          })));
-        }
+        setCardsData(cards.map(card => ({
+          ...card,
+          image: card.imageUrl,
+          game: typeof card.game === 'object' ? card.game.name : card.game,
+          priceDisplay: formatPrice(card.price)
+        })));
       } catch (e) {
         console.error('Error loading cards from API:', e);
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
 
     loadCards();
-    
-    const handleStorageChange = (e) => {
-      if (e.key === CARDS_KEY) {
-        try {
-          const stored = localStorage.getItem(CARDS_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setCardsData(parsed.map(normalizeCard));
-            }
-          }
-        } catch (err) {
-          console.error('Error loading cards from localStorage:', err);
-        }
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [CARDS_KEY]);
+  }, []);
 
   const cards = useMemo(() => {
     let filtered = [...cardsData];
@@ -412,7 +391,21 @@ const Catalog = () => {
         </div>
         
         {/* Cards Grid */}
-        {cards.length > 0 ? (
+        {loading ? (
+          <div className="catalog-empty">
+            <span className="empty-icon">⏳</span>
+            <h3>Cargando cartas...</h3>
+          </div>
+        ) : error ? (
+          <div className="catalog-empty">
+            <span className="empty-icon">⚠️</span>
+            <h3>No se pudo cargar las cartas</h3>
+            <p>Revisa tu conexión e intenta de nuevo</p>
+            <button className="btn-primary" onClick={() => window.location.reload()}>
+              Reintentar
+            </button>
+          </div>
+        ) : cards.length > 0 ? (
           <div className={`single-cards-grid ${viewMode}`}>
             {cards.map(card => (
               <SingleCard 
@@ -425,11 +418,8 @@ const Catalog = () => {
         ) : (
           <div className="catalog-empty">
             <span className="empty-icon">🎴</span>
-            <h3>No se encontraron cartas</h3>
-            <p>Intenta con otros filtros o búsqueda</p>
-            <button className="btn-primary" onClick={clearFilters}>
-              Limpiar filtros
-            </button>
+            <h3>No hay cartas disponibles</h3>
+            <p>Revisa el backend y la base de datos</p>
           </div>
         )}
       </div>
