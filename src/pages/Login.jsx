@@ -20,22 +20,18 @@ const Login = () => {
     setLoading(true);
     setError('');
 
-    try {
-      const adminSuccess = await adminLogin(formData.email, formData.password);
+    const adminSuccess = await adminLogin(formData.email, formData.password);
+    
+    if (adminSuccess) {
+      navigate('/admin');
+    } else {
+      const userSuccess = await userLogin(formData.email, formData.password);
       
-      if (adminSuccess) {
-        navigate('/admin');
+      if (userSuccess) {
+        navigate('/');
       } else {
-        const userSuccess = await userLogin(formData.email, formData.password);
-        
-        if (userSuccess) {
-          navigate('/');
-        } else {
-          setError('Credenciales incorrectas');
-        }
+        setError('Credenciales incorrectas');
       }
-    } catch (err) {
-      setError('Credenciales incorrectas');
     }
     
     setLoading(false);
