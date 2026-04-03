@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useSite } from '../context/SiteContext';
 import { useUser } from '../context/UserContext';
-import { Lock, Mail, ArrowLeft } from 'lucide-react';
+import { Lock, Mail, ArrowLeft, User } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login: adminLogin, isAuthenticated } = useSite();
-  const { login: userLogin, isLoggedIn } = useUser();
+  const { login: adminLogin } = useSite();
+  const { login: userLogin } = useUser();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,7 +23,13 @@ const Login = () => {
     if (adminSuccess) {
       navigate('/admin');
     } else {
-      setError('Credenciales incorrectas');
+      const userSuccess = await userLogin(formData.email, formData.password);
+      
+      if (userSuccess) {
+        navigate('/');
+      } else {
+        setError('Credenciales incorrectas');
+      }
     }
     
     setLoading(false);
@@ -42,10 +49,10 @@ const Login = () => {
 
       <div className="glass-card" style={{ maxWidth: '420px', margin: '0 auto', padding: '2.5rem', textAlign: 'center' }}>
         <div style={{ width: '60px', height: '60px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: 'var(--accent-gold)' }}>
-          <Lock size={28} />
+          <User size={28} />
         </div>
         <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>Iniciar Sesión</h2>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>Ingresa tus credenciales de administrador</p>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>Ingresa tu email y contraseña</p>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
           <div>
@@ -56,7 +63,7 @@ const Login = () => {
             <input 
               type="email" 
               name="email"
-              placeholder="admin@ejemplo.com" 
+              placeholder="tu@email.com" 
               value={formData.email} 
               onChange={handleChange}
               style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${error ? '#ef4444' : 'var(--glass-border)'}`, color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
