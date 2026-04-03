@@ -4,9 +4,9 @@ import { useSite } from '../context/SiteContext';
 import { Instagram, Youtube, Facebook, Sparkles, Sword } from 'lucide-react';
 
 const Footer = () => {
-  const { content, isAuthenticated } = useSite();
+  const { content } = useSite();
   const social = content.social || {};
-  const isAdmin = isAuthenticated;
+  const isAdmin = localStorage.getItem('is_authenticated') === 'true';
 
   return (
     <footer style={{ background: 'var(--bg-tertiary)', borderTop: '1px solid var(--glass-border)', padding: '4rem 2rem 2rem' }}>
