@@ -255,8 +255,9 @@ const Admin = () => {
       await loadMessages();
       const afterCount = inbox.length;
       
-      if (afterCount > beforeCount && beforeCount > 0) {
-        toast.success(`${afterCount - beforeCount} nuevo${afterCount - beforeCount > 1 ? 's' : ''} mensaje${afterCount - beforeCount > 1 ? 's' : ''} en bandeja`);
+      if (afterCount > beforeCount) {
+        const newMessages = afterCount - beforeCount;
+        toast.success(`${newMessages} nuevo${newMessages > 1 ? 's' : ''} mensaje${newMessages > 1 ? 's' : ''} en bandeja`);
       }
       prevInboxLength.current = afterCount;
     };
