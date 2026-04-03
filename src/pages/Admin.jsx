@@ -241,7 +241,8 @@ const Admin = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
-  const prevInboxLength = React.useRef(0);
+  const prevInboxLength = React.useRef(null);
+  const isInitialLoad = React.useRef(true);
 
   useEffect(() => {
     if (active === 'inbox') {
@@ -255,14 +256,18 @@ const Admin = () => {
       await loadMessages();
       const afterCount = inbox.length;
       
-      if (afterCount > beforeCount) {
+      if (isInitialLoad.current) {
+        prevInboxLength.current = afterCount;
+        isInitialLoad.current = false;
+        return;
+      }
+      
+      if (afterCount > beforeCount && beforeCount !== null) {
         const newMessages = afterCount - beforeCount;
         toast.success(`${newMessages} nuevo${newMessages > 1 ? 's' : ''} mensaje${newMessages > 1 ? 's' : ''} en bandeja`);
       }
       prevInboxLength.current = afterCount;
     };
-    
-    checkNewMessages();
     
     const interval = setInterval(checkNewMessages, 5000);
     
@@ -2163,7 +2168,7 @@ const Admin = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
                       <div>
                         <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.2rem' }}>{msg.name}</h4>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{msg.email} • {new Date(msg.date).toLocaleDateString()}</p>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{msg.email} • {new Date(msg.createdAt).toLocaleDateString()}</p>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         {!msg.read && (
