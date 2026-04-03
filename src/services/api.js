@@ -162,25 +162,33 @@ export const orderApi = {
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 export const authApi = {
   login: async (email, password) => {
-    const data = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    if (data.token) {
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('is_authenticated', 'true');
-      localStorage.setItem('tcg_user', JSON.stringify(data.user));
-      return { success: true, user: data.user };
+    try {
+      const data = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('is_authenticated', 'true');
+        localStorage.setItem('tcg_user', JSON.stringify(data.user));
+        return { success: true, user: data.user };
+      }
+      return { success: false };
+    } catch (error) {
+      return { success: false };
     }
-    return { success: false };
   },
 
   adminLogin: async (email, password) => {
-    const data = await apiRequest('/auth/admin/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    if (data.token) {
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('is_authenticated', 'true');
-      localStorage.setItem('tcg_user', JSON.stringify(data.user));
-      return { success: true, user: data.user };
+    try {
+      const data = await apiRequest('/auth/admin/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('is_authenticated', 'true');
+        localStorage.setItem('tcg_user', JSON.stringify(data.user));
+        return { success: true, user: data.user };
+      }
+      return { success: false };
+    } catch (error) {
+      return { success: false };
     }
-    return { success: false };
   },
 
   register: async (email, password, name) => {
