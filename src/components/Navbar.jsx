@@ -11,29 +11,18 @@ const AUTH_KEY = 'is_authenticated';
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const { itemCount } = useWishlist();
   const { logout: siteLogout } = useSite();
   const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkAuth = () => {
-      const savedUser = localStorage.getItem(USER_KEY);
-      const adminAuth = localStorage.getItem(AUTH_KEY) === 'true';
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
-      } else {
-        setUser(null);
-      }
-      setIsAdmin(adminAuth);
-    };
-    checkAuth();
-    
-    window.addEventListener('storage', checkAuth);
-    return () => window.removeEventListener('storage', checkAuth);
-  }, []);
+  const user = (() => {
+    const savedUser = localStorage.getItem(USER_KEY);
+    return savedUser ? JSON.parse(savedUser) : null;
+  })();
+  
+  const isAdmin = localStorage.getItem(AUTH_KEY) === 'true';
+  const isLoggedIn = user || isAdmin;
 
   useEffect(() => {
     setIsOpen(false);
@@ -44,14 +33,10 @@ const Navbar = () => {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem('auth_token');
-    setUser(null);
-    setIsAdmin(false);
-    setIsDropdownOpen(false);
     await siteLogout();
     navigate('/');
+    window.location.reload();
   };
-
-  const isLoggedIn = user || isAdmin;
 
   const navLinks = [
     { path: '/', name: 'Inicio' },
