@@ -94,35 +94,6 @@ const AppContent = () => {
 };
 
 const App = () => {
-  useEffect(() => {
-    if (!localStorage.getItem('tcg_sellados')) {
-      localStorage.setItem('tcg_sellados', JSON.stringify([
-        { id: 's1', name: 'Charizard ex Ultra Premium Collection', price: 2990, priceDisplay: '$2,990', game: 'pokemon', set: 'Phantasmal Flames', type: 'premium', badge: 'Nuevo', discountPercent: 0, image: null, stock: 5 },
-        { id: 's2', name: 'Mega Evolution Elite Trainer Box', price: 1270, priceDisplay: '$1,270', game: 'pokemon', set: 'Mega Evolution', type: 'elite-trainer', badge: 'Oferta', discountPercent: 20, image: null, stock: 3 },
-        { id: 's3', name: 'Prismatic Evolutions Booster Box', price: 5800, priceDisplay: '$5,800', game: 'pokemon', set: 'Scarlet & Violet', type: 'booster-box', badge: 'Preventa', discountPercent: 0, image: null, stock: 10 },
-        { id: 's4', name: 'Marvel Super Heroes Commander Deck', price: 890, priceDisplay: '$890', game: 'magic', set: 'Marvel', type: 'deck', badge: 'Nuevo', discountPercent: 0, image: null, stock: 8 },
-        { id: 's5', name: 'Destined Rivals Booster Bundle', price: 760, priceDisplay: '$760', game: 'pokemon', set: 'Scarlet & Violet', type: 'bundle', discountPercent: 20, image: null, stock: 12 },
-        { id: 's6', name: 'Digimon BT-15 Booster Box', price: 2200, priceDisplay: '$2,200', game: 'digimon', set: 'BT-15', type: 'booster-box', badge: 'Nuevo', discountPercent: 0, image: null, stock: 4 },
-        { id: 's7', name: 'Dragon Ball Super Starter Deck', price: 450, priceDisplay: '$450', game: 'dragonball', set: 'Series 1', type: 'starter', discountPercent: 0, image: null, stock: 6 },
-        { id: 's8', name: 'One Piece OP-10 Booster Box', price: 1800, priceDisplay: '$1,800', game: 'onepiece', set: 'Royal Blood', type: 'booster-box', badge: 'Preventa', discountPercent: 0, image: null, stock: 7 },
-        { id: 's9', name: 'Surging Sparks Booster Box', price: 3360, priceDisplay: '$3,360', game: 'pokemon', set: 'Scarlet & Violet', type: 'booster-box', discountPercent: 15, image: null, stock: 5 },
-        { id: 's10', name: 'Yu-Gi-Oh! Structure Deck', price: 380, priceDisplay: '$380', game: 'yugioh', set: 'Structure Deck', type: 'deck', discountPercent: 0, image: null, stock: 12 },
-        { id: 's11', name: 'Phantasmal Flames 3-Pack Blister', price: 64, priceDisplay: '$64', game: 'pokemon', set: 'Mega Evolution', type: 'blister', discountPercent: 20, image: null, stock: 25 },
-        { id: 's12', name: 'Lorcana Booster Box', price: 2400, priceDisplay: '$2,400', game: 'magic', set: 'Disney Lorcana', type: 'booster-box', badge: 'Nuevo', discountPercent: 0, image: null, stock: 3 }
-      ]));
-    }
-    if (!localStorage.getItem('tcg_cards')) {
-      localStorage.setItem('tcg_cards', JSON.stringify([
-        { id: 'c1', name: 'Charizard ex - Ultra Rare', price: 3500, priceDisplay: '$3,500', game: 'pokemon', rarity: 'ultra-rare', set: 'Phantasmal Flames', condition: 'NM', image: null, stock: 2 },
-        { id: 'c2', name: 'Mewtwo ex - Rare Holo', price: 890, priceDisplay: '$890', game: 'pokemon', rarity: 'rare-holo', set: 'Obsidian Flames', condition: 'NM', image: null, stock: 5 },
-        { id: 'c3', name: 'Pikachu - Common', price: 25, priceDisplay: '$25', game: 'pokemon', rarity: 'common', set: 'Paldean Fates', condition: 'NM', image: null, stock: 20 },
-        { id: 'c4', name: 'Blue Eyes White Dragon - Ultra Rare', price: 4500, priceDisplay: '$4,500', game: 'yugioh', rarity: 'ultra-rare', set: 'Structure Deck', condition: 'NM', image: null, stock: 1 },
-        { id: 'c5', name: 'Dark Magician - Rare', price: 1200, priceDisplay: '$1,200', game: 'yugioh', rarity: 'rare', set: 'Structure Deck', condition: 'NM', image: null, stock: 3 },
-        { id: 'c6', name: 'Black Lotus - Rare', price: 15000, priceDisplay: '$15,000', game: 'magic', rarity: 'rare', set: 'Alpha Edition', condition: 'LP', image: null, stock: 1 }
-      ]));
-    }
-  }, []);
-
   return (
     <SiteProvider>
       <WishlistProvider>

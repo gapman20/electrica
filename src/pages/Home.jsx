@@ -9,7 +9,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
-import { getGameValue } from '../services/api';
+import { getGameValue, productApi, cardApi } from '../services/api';
 
 const formatPrice = (value) => {
   if (typeof value === 'number') {
@@ -174,6 +174,9 @@ const Home = () => {
   const [email, setEmail] = useState('');
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [offers, setOffers] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const carouselRef = useRef(null);
   
   const activeCampaign = getCampaign ? getCampaign() : null;
@@ -208,24 +211,6 @@ const Home = () => {
     { name: 'Dragon Ball', icon: '🟠', color: '#f97316' }
   ];
 
-  const featuredProducts = [
-    { id: '1', name: 'Charizard ex Premium Collection', price: '$2,999', game: 'Pokémon', set: 'Phantasmal Flames', badge: 'Nuevo', image: null, stock: 5 },
-    { id: '2', name: 'Elite Trainer Box - Mega Evolution', price: '$1,590', game: 'Pokémon', set: 'Mega Evolution', badge: 'Oferta', originalPrice: '$1,800', image: null, stock: 3 },
-    { id: '3', name: 'Booster Box Prismatic Evolutions', price: '$5,800', game: 'Pokémon', set: 'Scarlet & Violet', badge: 'Preventa', image: null, stock: 10 },
-    { id: '4', name: 'Deck Commander Marvel Super Heroes', price: '$890', game: 'Magic', set: 'Marvel', badge: 'Nuevo', image: null, stock: 8 },
-    { id: '5', name: 'Mega Garchomp ex Collection', price: '$4,500', game: 'Pokémon', set: 'Destined Rivals', badge: 'Agotado', image: null, stock: 0 },
-    { id: '6', name: 'Digimon BT-15 Booster Box', price: '$2,200', game: 'Digimon', set: 'BT-15', badge: 'Nuevo', image: null, stock: 4 },
-    { id: '7', name: 'Dragon Ball Super Starter Deck', price: '$450', game: 'Dragon Ball', set: 'Series', image: null, stock: 6 },
-    { id: '8', name: 'One Piece OP-10 Booster Box', price: '$1,800', game: 'One Piece', set: 'Royal Blood', badge: 'Preventa', image: null, stock: 7 }
-  ];
-
-  const offers = [
-    { id: 'o1', name: 'Micas Ultra Pro (100 pz)', price: '$38', originalPrice: '$70', image: null, stock: 20 },
-    { id: 'o2', name: 'Prismatic Evolutions Poster Collection', price: '$299', originalPrice: '$720', image: null, stock: 15 },
-    { id: 'o3', name: 'Journey Together Build & Battle', price: '$440', originalPrice: '$840', image: null, stock: 8 },
-    { id: 'o4', name: 'Surging Sparks Booster Box', price: '$4,200', originalPrice: '$6,200', image: null, stock: 5 }
-  ];
-
   const trustBadges = [
     { icon: <Shield size={28} />, title: 'Pago Seguro', desc: 'SSL 256-bit encryption' },
     { icon: <Truck size={28} />, title: 'Envío 24-48h', desc: 'En empaques protegidos' },
@@ -239,6 +224,44 @@ const Home = () => {
     }, 5000);
     return () => clearInterval(timer);
   }, [banners.length]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoadingProducts(true);
+      try {
+        const [productsData, cardsData] = await Promise.all([
+          productApi.getAll(),
+          cardApi.getAll()
+        ]);
+        
+        const formattedProducts = productsData.slice(0, 4).map(p => ({
+          ...p,
+          price: formatPrice(p.price),
+          originalPrice: p.originalPrice ? formatPrice(p.originalPrice) : null,
+          image: p.imageUrl || null
+        }));
+        
+        const formattedOffers = productsData
+          .filter(p => p.discountPercent > 0)
+          .slice(0, 4)
+          .map(p => ({
+            ...p,
+            price: formatPrice(p.price),
+            originalPrice: p.originalPrice ? formatPrice(p.originalPrice) : null,
+            image: p.imageUrl || null
+          }));
+        
+        setFeaturedProducts(formattedProducts);
+        setOffers(formattedOffers);
+      } catch (error) {
+        console.error('Error loading products:', error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    
+    fetchProducts();
+  }, []);
 
   const handleAddToCart = (product) => {
     addItem({
@@ -369,9 +392,15 @@ const Home = () => {
           </div>
           
           <div className="products-grid">
-            {featuredProducts.slice(0, 4).map(product => (
-              <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
-            ))}
+            {loadingProducts ? (
+              <p>Cargando productos...</p>
+            ) : featuredProducts.length > 0 ? (
+              featuredProducts.slice(0, 4).map(product => (
+                <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+              ))
+            ) : (
+              <p>No hay productos disponibles</p>
+            )}
           </div>
         </div>
       </section>
@@ -417,9 +446,15 @@ const Home = () => {
           </div>
           
           <div className="offers-grid">
-            {offers.map(offer => (
-              <ProductCard key={offer.id} product={{ ...offer, badge: 'Oferta' }} onAddToCart={handleAddToCart} />
-            ))}
+            {loadingProducts ? (
+              <p>Cargando ofertas...</p>
+            ) : offers.length > 0 ? (
+              offers.map(offer => (
+                <ProductCard key={offer.id} product={{ ...offer, badge: 'Oferta' }} onAddToCart={handleAddToCart} />
+              ))
+            ) : (
+              <p>No hay ofertas disponibles</p>
+            )}
           </div>
         </div>
       </section>

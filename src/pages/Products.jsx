@@ -7,8 +7,6 @@ import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { productApi } from '../services/api';
 
-const SELLADOS_KEY = 'tcg_sellados';
-
 const GAMES = [
   { id: 'all', name: 'Todos', icon: '🎯', color: '#6366f1' },
   { id: 'pokemon', name: 'Pokémon TCG', icon: '🔴', color: '#ef4444' },
@@ -56,21 +54,6 @@ const normalizeSealedProduct = (product) => ({
   stock: product.stock ?? 1,
   discountPercent: product.discountPercent || 0
 });
-
-const sampleSealedProducts = [
-  { id: 's1', name: 'Charizard ex Ultra Premium Collection', price: 2990, priceDisplay: '$2,990', game: 'pokemon', set: 'Phantasmal Flames', type: 'premium', badge: 'Nuevo', image: null, stock: 5 },
-  { id: 's2', name: 'Mega Evolution Elite Trainer Box', price: 1590, priceDisplay: '$1,590', game: 'pokemon', set: 'Mega Evolution', type: 'elite-trainer', badge: 'Oferta', originalPrice: 1800, image: null, stock: 3 },
-  { id: 's3', name: 'Prismatic Evolutions Booster Box', price: 5800, priceDisplay: '$5,800', game: 'pokemon', set: 'Scarlet & Violet', type: 'booster-box', badge: 'Preventa', image: null, stock: 10 },
-  { id: 's4', name: 'Marvel Super Heroes Commander Deck', price: 890, priceDisplay: '$890', game: 'magic', set: 'Marvel', type: 'deck', badge: 'Nuevo', image: null, stock: 8 },
-  { id: 's5', name: 'Destined Rivals Booster Bundle', price: 950, priceDisplay: '$950', game: 'pokemon', set: 'Scarlet & Violet', type: 'bundle', image: null, stock: 12 },
-  { id: 's6', name: 'Digimon BT-15 Booster Box', price: 2200, priceDisplay: '$2,200', game: 'digimon', set: 'BT-15', type: 'booster-box', badge: 'Nuevo', image: null, stock: 4 },
-  { id: 's7', name: 'Dragon Ball Super Starter Deck', price: 450, priceDisplay: '$450', game: 'dragonball', set: 'Series 1', type: 'starter', image: null, stock: 6 },
-  { id: 's8', name: 'One Piece OP-10 Booster Box', price: 1800, priceDisplay: '$1,800', game: 'onepiece', set: 'Royal Blood', type: 'booster-box', badge: 'Preventa', image: null, stock: 7 },
-  { id: 's9', name: 'Surging Sparks Booster Box', price: 4200, priceDisplay: '$4,200', game: 'pokemon', set: 'Scarlet & Violet', type: 'booster-box', originalPrice: 6200, image: null, stock: 5 },
-  { id: 's10', name: 'Yu-Gi-Oh! Structure Deck', price: 380, priceDisplay: '$380', game: 'yugioh', set: 'Structure Deck', type: 'deck', image: null, stock: 12 },
-  { id: 's11', name: 'Phantasmal Flames 3-Pack Blister', price: 80, priceDisplay: '$80', game: 'pokemon', set: 'Mega Evolution', type: 'blister', originalPrice: 120, image: null, stock: 25 },
-  { id: 's12', name: 'Lorcana Booster Box', price: 2400, priceDisplay: '$2,400', game: 'magic', set: 'Disney Lorcana', type: 'booster-box', badge: 'Nuevo', image: null, stock: 3 }
-];
 
 const SealedProductCard = ({ product, onAddToCart }) => {
   const [isHovered, setIsHovered] = useState(false);
