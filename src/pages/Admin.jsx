@@ -396,6 +396,7 @@ const Admin = () => {
     setNewCardId(tempId);
     setCards(prev => [newCard, ...prev]);
     setEditingCard(tempId);
+    setCreatingCard(false);
   };
 
   const saveCard = async (cardId) => {
