@@ -10,7 +10,7 @@ import {
   LayoutDashboard, FileText, Settings, Mail, Info,
   Save, RotateCcw, CheckCircle, AlertCircle, Eye,
   Image as ImageIcon, Palette, BarChart2, Globe,
-  MessageSquare, Zap, Users, TrendingUp, Monitor,
+  MessageSquare, Users, TrendingUp, Monitor,
   ToggleLeft, ToggleRight, RefreshCw, Plus, Trash2, Package,
   Columns, ArrowUp, ArrowDown, Bold, List, BarChart, Lock,
   Gamepad2, Layers, Tag, Calendar, Percent, Search
@@ -190,7 +190,6 @@ const sections = [
   { id: 'seo', label: 'SEO', icon: <Globe size={17} /> },
   { id: 'home', label: 'Inicio', icon: <Monitor size={17} /> },
   { id: 'about', label: 'Nosotros', icon: <Info size={17} /> },
-  { id: 'services', label: 'Colecciones', icon: <Zap size={17} /> },
   { id: 'blog', label: 'Blog', icon: <FileText size={17} /> },
   { id: 'contact', label: 'Contacto', icon: <Mail size={17} /> },
   { id: 'social', label: 'Redes Sociales', icon: <Globe size={17} /> },
@@ -2034,39 +2033,6 @@ const Admin = () => {
                 ))}
               </div>
             )}
-          </div>
-        );
-
-      case 'services':
-        return (
-          <div>
-            <h3 style={sectionTitle}><Zap size={20} color="var(--accent-gold)" /> Editor de Servicios</h3>
-            <Field label="Título de la sección" path="services.title" value={content.services.title} onChange={onChange} />
-            <Field label="Subtítulo" path="services.subtitle" value={content.services.subtitle} onChange={onChange} type="textarea" />
-
-            <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {(content.services?.cards || []).map((card, i) => (
-                <div key={i} style={{ padding: '1.5rem', background: `rgba(245,158,11,0.04)`, border: '1px solid var(--glass-border)', borderRadius: '12px', borderLeft: '4px solid var(--accent-gold)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: '700', color: 'var(--accent-gold)', fontSize: '0.85rem' }}>SERVICIO #{i + 1}</span>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <button onClick={() => moveServiceCard(i, 'up')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}><ArrowUp size={14} /></button>
-                      <button onClick={() => moveServiceCard(i, 'down')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}><ArrowDown size={14} /></button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.4rem' }}>Título</label>
-                      <input value={card.title} onChange={e => updateServiceCard(i, 'title', e.target.value)} style={inputSt} onFocus={focus} onBlur={blur} />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.4rem' }}>Descripción</label>
-                      <textarea value={card.desc} rows={2} onChange={e => updateServiceCard(i, 'desc', e.target.value)} style={inputSt} onFocus={focus} onBlur={blur} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         );
 
