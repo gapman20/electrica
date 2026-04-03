@@ -241,8 +241,7 @@ const Admin = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
-  const prevInboxLength = React.useRef(null);
-  const isInitialLoad = React.useRef(true);
+  const lastMessageId = React.useRef(null);
 
   useEffect(() => {
     if (active === 'inbox') {
@@ -252,27 +251,25 @@ const Admin = () => {
 
   useEffect(() => {
     const checkNewMessages = async () => {
-      const beforeCount = prevInboxLength.current;
       await loadMessages();
-      const afterCount = inbox.length;
-      
-      if (isInitialLoad.current) {
-        prevInboxLength.current = afterCount;
-        isInitialLoad.current = false;
-        return;
-      }
-      
-      if (afterCount > beforeCount && beforeCount !== null) {
-        const newMessages = afterCount - beforeCount;
-        toast.success(`${newMessages} nuevo${newMessages > 1 ? 's' : ''} mensaje${newMessages > 1 ? 's' : ''} en bandeja`);
-      }
-      prevInboxLength.current = afterCount;
     };
     
     const interval = setInterval(checkNewMessages, 5000);
     
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (inbox.length > 0) {
+      const latestMessage = inbox[0];
+      if (lastMessageId.current === null) {
+        lastMessageId.current = latestMessage.id;
+      } else if (lastMessageId.current !== latestMessage.id) {
+        toast.success(`Nuevo mensaje de ${latestMessage.name}: "${latestMessage.message.substring(0, 30)}..."`);
+        lastMessageId.current = latestMessage.id;
+      }
+    }
+  }, [inbox.length]);
 
   const handleCardSearch = async () => {
     if (!searchQuery.trim()) return;
