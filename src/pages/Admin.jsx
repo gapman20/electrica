@@ -617,7 +617,6 @@ const Admin = () => {
 
       // ── Dashboard ─────────────────────────────────────────────────────────
       case 'dashboard': {
-        const activePages = pages.filter(p => p.active).length;
         const totalImages = [images.logo, images.heroBg, images.aboutHero, ...(images.portfolio || [])].filter(Boolean).length;
         
         const dashboardSellados = sellados;
@@ -746,7 +745,6 @@ const Admin = () => {
                   {[
                     { label: '📦 Agregar Sellado', section: 'sellados', action: 'create' },
                     { label: '🃏 Agregar Carta', section: 'cards', action: 'create' },
-                    { label: '📄 Gestionar Páginas', section: 'pages' },
                     { label: '🎨 Cambiar Colores', section: 'theme' },
                   ].map(q => (
                     <button key={q.label} onClick={() => {
@@ -772,7 +770,6 @@ const Admin = () => {
                   { label: 'Nombre', val: content.siteName },
                   { label: 'Email', val: content.contact?.email },
                   { label: 'WhatsApp', val: content.contact?.whatsapp },
-                  { label: 'Páginas Activas', val: `${activePages}/${pages.length}` },
                 ].map((row, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{row.label}</span>
