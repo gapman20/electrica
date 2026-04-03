@@ -25,6 +25,7 @@ const Admin = React.lazy(() => import('./pages/Admin'));
 const CustomPage = React.lazy(() => import('./pages/CustomPage'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register'));
+const MyAccount = React.lazy(() => import('./pages/MyAccount'));
 
 // Store Pages
 const Catalog = React.lazy(() => import('./pages/Catalog'));
@@ -76,6 +77,7 @@ const AppContent = () => {
             <Route path="/mis-pedidos/:orderId" element={<OrderTracking />} />
             <Route path="/login" element={<Login />} />
             <Route path="/registro" element={<Register />} />
+            <Route path="/mi-cuenta" element={<MyAccount />} />
             
             {/* Dynamic Pages from SiteContext */}
             {pages.filter(p => p.active).map(page => (
