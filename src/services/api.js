@@ -27,12 +27,14 @@ async function apiRequest(endpoint, options = {}) {
 
   try {
     const response = await fetch(url, config);
+    const data = await response.json().catch(() => ({}));
     
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      const errorMsg = data.error || `API Error: ${response.status}`;
+      throw new Error(errorMsg);
     }
     
-    return await response.json();
+    return data;
   } catch (error) {
     console.error('API Request Failed:', error);
     throw error;
