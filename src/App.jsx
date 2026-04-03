@@ -73,6 +73,7 @@ const AppContent = () => {
             <Route path="/producto/:id" element={<ProductDetail />} />
             <Route path="/mis-deseos" element={<Wishlist />} />
             <Route path="/mis-pedidos/:orderId" element={<OrderTracking />} />
+            <Route path="/login" element={<Login />} />
             
             {/* Dynamic Pages from SiteContext */}
             {pages.filter(p => p.active).map(page => (
