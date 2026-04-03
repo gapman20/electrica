@@ -6,6 +6,7 @@ import { Instagram, Youtube, Facebook, Sparkles, Sword } from 'lucide-react';
 const Footer = () => {
   const { content, isAuthenticated } = useSite();
   const social = content.social || {};
+  const isAdmin = isAuthenticated;
 
   return (
     <footer style={{ background: 'var(--bg-tertiary)', borderTop: '1px solid var(--glass-border)', padding: '4rem 2rem 2rem' }}>
@@ -88,7 +89,7 @@ const Footer = () => {
                 </Link>
               </li>
             ))}
-            {isAuthenticated() && (
+            {isAdmin && (
               <li style={{ marginTop: '0.8rem', paddingTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                 <Link to="/admin"
                   style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.82rem', opacity: 0.45, display: 'flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s' }}
