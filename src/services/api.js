@@ -36,6 +36,7 @@ async function apiRequest(endpoint, options = {}) {
     
     return data;
   } catch (error) {
+    if (error.message.includes('401')) return null;
     throw error;
   }
 }
