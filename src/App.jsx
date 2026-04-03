@@ -38,6 +38,16 @@ const Wishlist = React.lazy(() => import('./pages/Wishlist'));
 
 const AppContent = () => {
   const { pages, isAuthenticated } = useSite();
+  
+  const isAdminUser = (() => {
+    const savedUser = localStorage.getItem('tcg_user');
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      return user?.role === 'ADMIN';
+    }
+    return false;
+  })();
+  
   const componentMap = {
     home: <Home />,
     about: <About />,
@@ -67,7 +77,7 @@ const AppContent = () => {
             <Route path="/servicios/1" element={<ServiceDetail1 />} />
             <Route path="/servicios/2" element={<ServiceDetail2 />} />
             <Route path="/blog/:id" element={<BlogPost />} />
-            <Route path="/admin" element={isAuthenticated ? <Admin /> : <Login />} />
+            <Route path="/admin" element={isAdminUser ? <Admin /> : <Login />} />
             <Route path="/carrito" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/pedido/:orderId/confirmacion" element={<OrderConfirmation />} />

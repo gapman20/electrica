@@ -21,7 +21,7 @@ const Navbar = () => {
     return savedUser ? JSON.parse(savedUser) : null;
   })();
   
-  const isAdmin = localStorage.getItem(AUTH_KEY) === 'true';
+  const isAdmin = user?.role === 'ADMIN';
   const isLoggedIn = user || isAdmin;
 
   useEffect(() => {
