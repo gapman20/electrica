@@ -250,8 +250,6 @@ const Admin = () => {
   }, [active]);
 
   useEffect(() => {
-    if (active !== 'inbox') return;
-    
     const checkNewMessages = async () => {
       const beforeCount = prevInboxLength.current;
       await loadMessages();
@@ -268,14 +266,6 @@ const Admin = () => {
     const interval = setInterval(checkNewMessages, 5000);
     
     return () => clearInterval(interval);
-  }, [active]);
-
-  useEffect(() => {
-    const unread = inbox.filter(m => !m.read).length;
-    if (unread > 0) {
-      setTimeout(() => toast.info(`Tienes ${unread} mensaje${unread > 1 ? 's' : ''} sin leer`), 1500);
-    }
-    prevInboxLength.current = inbox.length;
   }, []);
 
   const handleCardSearch = async () => {
