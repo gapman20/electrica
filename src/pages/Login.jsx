@@ -1,55 +1,97 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useSite } from '../context/SiteContext';
-import { Lock } from 'lucide-react';
+import { useUser } from '../context/UserContext';
+import { Lock, Mail, ArrowLeft } from 'lucide-react';
 
 const Login = () => {
-  const { login } = useSite();
-  const [email, setEmail] = useState('');
-  const [pass, setPass] = useState('');
-  const [error, setError] = useState(false);
+  const navigate = useNavigate();
+  const { login: adminLogin, isAuthenticated } = useSite();
+  const { login: userLogin, isLoggedIn } = useUser();
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const success = await login(email, pass);
-    if (!success) setError(true);
+    setError('');
+
+    const adminSuccess = await adminLogin(formData.email, formData.password);
+    
+    if (adminSuccess) {
+      navigate('/admin');
+    } else {
+      setError('Credenciales incorrectas');
+    }
+    
     setLoading(false);
   };
 
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError('');
+  };
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-dark)', padding: '2rem' }}>
-      <div className="glass-card" style={{ padding: '3rem', width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-        <div style={{ width: '60px', height: '60px', background: 'rgba(59,130,246,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', color: 'var(--accent-primary)' }}>
-          <Lock size={30} />
+    <div className="page">
+      <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: '2rem', fontSize: '0.9rem' }}>
+        <ArrowLeft size={16} />
+        Volver al inicio
+      </Link>
+
+      <div className="glass-card" style={{ maxWidth: '420px', margin: '0 auto', padding: '2.5rem', textAlign: 'center' }}>
+        <div style={{ width: '60px', height: '60px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: 'var(--accent-gold)' }}>
+          <Lock size={28} />
         </div>
-        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>Acceso Restringido</h2>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>Ingresa tus credenciales para administrar el sitio.</p>
+        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>Iniciar Sesión</h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>Ingresa tus credenciales de administrador</p>
         
-        <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <input 
-            type="email" 
-            placeholder="Correo electrónico" 
-            value={email} 
-            onChange={(e) => { setEmail(e.target.value); setError(false); }}
-            style={{ width: '100%', padding: '14px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${error ? '#ef4444' : 'var(--glass-border)'}`, color: 'var(--text-primary)', borderRadius: '8px', outline: 'none' }} 
-            required
-          />
-          <input 
-            type="password" 
-            placeholder="Contraseña" 
-            value={pass} 
-            onChange={(e) => { setPass(e.target.value); setError(false); }}
-            style={{ width: '100%', padding: '14px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${error ? '#ef4444' : 'var(--glass-border)'}`, color: 'var(--text-primary)', borderRadius: '8px', outline: 'none' }} 
-            required
-          />
-          {error && <span style={{ color: '#ef4444', fontSize: '0.8rem', textAlign: 'left', marginTop: '-0.5rem' }}>Credenciales incorrectas</span>}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              <Mail size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+              Correo electrónico
+            </label>
+            <input 
+              type="email" 
+              name="email"
+              placeholder="admin@ejemplo.com" 
+              value={formData.email} 
+              onChange={handleChange}
+              style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${error ? '#ef4444' : 'var(--glass-border)'}`, color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
+              required
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              Contraseña
+            </label>
+            <input 
+              type="password" 
+              name="password"
+              placeholder="••••••••" 
+              value={formData.password} 
+              onChange={handleChange}
+              style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${error ? '#ef4444' : 'var(--glass-border)'}`, color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
+              required
+            />
+          </div>
+          
+          {error && (
+            <span style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', padding: '8px', background: 'rgba(239,68,68,0.1)', borderRadius: '6px' }}>
+              {error}
+            </span>
+          )}
+          
           <button type="submit" disabled={loading} className="btn-primary" style={{ marginTop: '0.5rem', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}>
-            {loading ? 'Verificando...' : 'Ingresar al Panel'}
+            {loading ? 'Verificando...' : 'Iniciar Sesión'}
           </button>
         </form>
       </div>
     </div>
   );
 };
+
 export default Login;
