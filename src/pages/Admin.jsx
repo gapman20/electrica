@@ -659,7 +659,7 @@ const Admin = () => {
 
       // ── Dashboard ─────────────────────────────────────────────────────────
       case 'dashboard': {
-        const totalImages = [images.logo, images.heroBg, images.aboutHero, ...(images.portfolio || [])].filter(Boolean).length;
+        const totalImages = [images.logo, images.heroBg, images.aboutHero].filter(Boolean).length;
         
         const dashboardSellados = sellados;
         const dashboardCards = cards;
@@ -2108,14 +2108,6 @@ const Admin = () => {
             <ImageUploader label="Logo / Imagen de Marca" description="PNG transparente recomendado — 200×60 px" value={images.logo} onChange={val => updateImage('logo', val)} />
             <ImageUploader label="Imagen Hero (Fondo del Inicio)" description="JPG/WebP — 1920×1080 px" value={images.heroBg} onChange={val => updateImage('heroBg', val)} />
             <ImageUploader label="Imagen Nosotros" description="JPG — 800×600 px" value={images.aboutHero} onChange={val => updateImage('aboutHero', val)} />
-            <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
-              <p style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1.5rem' }}>Imágenes del Portafolio (6 slots)</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                {(images.portfolio || [null, null, null, null, null, null]).map((img, i) => (
-                  <ImageUploader key={i} label={`Proyecto #${i + 1}`} description="JPG/PNG — 800×533 px" value={img} onChange={val => updateImage('portfolio', val, i)} />
-                ))}
-              </div>
-            </div>
           </div>
         );
 
