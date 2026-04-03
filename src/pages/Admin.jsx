@@ -242,6 +242,7 @@ const Admin = () => {
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
   const lastMessageId = React.useRef(null);
+  const lastMessageDate = React.useRef(null);
 
   useEffect(() => {
     if (active === 'inbox') {
@@ -264,9 +265,15 @@ const Admin = () => {
       const latestMessage = inbox[0];
       if (lastMessageId.current === null) {
         lastMessageId.current = latestMessage.id;
+        lastMessageDate.current = latestMessage.createdAt;
       } else if (lastMessageId.current !== latestMessage.id) {
-        toast.success(`Nuevo mensaje de ${latestMessage.name}: "${latestMessage.message.substring(0, 30)}..."`);
+        const currentDate = new Date(latestMessage.createdAt);
+        const previousDate = lastMessageDate.current ? new Date(lastMessageDate.current) : null;
+        if (!previousDate || currentDate > previousDate) {
+          toast.success(`Nuevo mensaje de ${latestMessage.name}: "${latestMessage.message.substring(0, 30)}..."`);
+        }
         lastMessageId.current = latestMessage.id;
+        lastMessageDate.current = latestMessage.createdAt;
       }
     }
   }, [inbox.length]);
@@ -2171,7 +2178,7 @@ const Admin = () => {
                         {!msg.read && (
                           <button onClick={() => markMessageRead(msg.id)} style={{ background: 'transparent', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer' }}>Marcar Leído</button>
                         )}
-                        <button onClick={() => { if(confirm('¿Eliminar mensaje de manera permanente?')) deleteMessage(msg.id); }} style={{ background: 'transparent', border: '1px solid #ef444455', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer' }}><Trash2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Eliminar</button>
+                        <button onClick={() => { Swal.fire({ title: '¿Eliminar mensaje?', text: 'Esta acción no se puede deshacer.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar', background: 'rgba(15, 23, 42, 0.95)', color: '#fff' }).then((result) => { if (result.isConfirmed) deleteMessage(msg.id); }); }} style={{ background: 'transparent', border: '1px solid #ef444455', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer' }}><Trash2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Eliminar</button>
                       </div>
                     </div>
                     <p style={{ fontSize: '0.95rem', lineHeight: '1.6', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{msg.message}</p>
