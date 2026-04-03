@@ -282,3 +282,19 @@ export default {
   site: siteApi,
   images: imageApi,
 };
+
+// ─── Contact API ──────────────────────────────────────────────────────────────
+export const contactApi = {
+  send: async (data) => {
+    return await apiRequest('/contact', { method: 'POST', body: JSON.stringify(data) });
+  },
+  getAll: async () => {
+    return await apiRequest('/contact');
+  },
+  markRead: async (id) => {
+    return await apiRequest(`/contact/${id}/read`, { method: 'PUT' });
+  },
+  delete: async (id) => {
+    return await apiRequest(`/contact/${id}`, { method: 'DELETE' });
+  },
+};

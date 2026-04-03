@@ -8,11 +8,17 @@ const Contact = () => {
   const c = content.contact;
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if(formData.name && formData.email) {
-      addMessage(formData);
+    if(!formData.name || !formData.email) return;
+    
+    setSending(true);
+    const success = await addMessage(formData);
+    setSending(false);
+    
+    if(success) {
       setSent(true);
       setFormData({ name: '', email: '', message: '' });
       setTimeout(() => setSent(false), 4000);
@@ -84,8 +90,8 @@ const Contact = () => {
               <textarea required placeholder="¿Qué carta buscas? ¿Tienes alguna duda?" rows="5" value={formData.message} onChange={e=>setFormData({...formData, message: e.target.value})} style={{ width: '100%', padding: '16px', background: 'rgba(5,5,5,0.5)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '12px', resize: 'vertical', fontFamily: 'var(--font-body)', outline: 'none', transition: 'border-color 0.3s' }} onFocus={e => e.target.style.borderColor = 'var(--accent-gold)'} onBlur={e => e.target.style.borderColor = 'var(--glass-border)'}></textarea>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}>
-              {sent ? '¡Mensaje Enviado!' : 'Enviar Mensaje'} <Send size={18} />
+            <button type="submit" className="btn-primary" style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }} disabled={sending}>
+              {sent ? '¡Mensaje Enviado!' : sending ? 'Enviando...' : 'Enviar Mensaje'} <Send size={18} />
             </button>
           </form>
         </div>
