@@ -617,6 +617,13 @@ const Admin = () => {
     if (!result.isConfirmed) return;
     
     const sellado = sellados.find(s => s.id === id);
+    
+    if (sellado?.isNew) {
+      setSellados(prev => prev.filter(item => item.id !== id));
+      setEditingSellado(null);
+      return;
+    }
+    
     setSellados(prev => prev.filter(item => item.id !== id));
     try {
       await api.products.delete(id);
