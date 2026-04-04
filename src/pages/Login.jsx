@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
@@ -6,14 +6,20 @@ import { useUser } from '../context/UserContext';
 import { Lock, Mail, ArrowLeft, User } from 'lucide-react';
 import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
+import { googleAuth, authenticateWithGoogle } from '../services/googleAuth';
 
 const Login = () => {
   const navigate = useNavigate();
   const { login: adminLogin } = useSite();
-  const { login: userLogin } = useUser();
+  const { login: userLogin, setUser } = useUser();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    googleAuth.init();
+    googleAuth.renderButton('google-signin-btn');
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,6 +106,14 @@ const Login = () => {
             {loading ? 'Verificando...' : 'Iniciar Sesión'}
           </button>
         </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1.5rem 0' }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>o</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
+        </div>
+
+        <div id="google-signin-btn" style={{ display: 'flex', justifyContent: 'center' }}></div>
 
         <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           ¿No tienes cuenta? <Link to="/registro" style={{ color: 'var(--accent-gold)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><UserPlus size={14} /> Regístrate</Link>
