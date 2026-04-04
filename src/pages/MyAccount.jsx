@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { User, Mail, Phone, MapPin, Save, ArrowLeft } from 'lucide-react';
 import { useUser } from '../context/UserContext';
@@ -8,6 +8,7 @@ import SEO from '../components/SEO';
 
 const MyAccount = () => {
   const { user, updateUser, logout } = useUser();
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,6 +17,9 @@ const MyAccount = () => {
     city: '',
     state: '',
     zipCode: '',
+    country: '',
+    betweenStreets: '',
+    houseReference: '',
   });
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -30,9 +34,27 @@ const MyAccount = () => {
         city: user.city || '',
         state: user.state || '',
         zipCode: user.zipCode || '',
+        country: user.country || '',
+        betweenStreets: user.betweenStreets || '',
+        houseReference: user.houseReference || '',
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const getGridStyle = useCallback(() => {
+    if (windowWidth <= 480) {
+      return { gridTemplateColumns: '1fr' };
+    } else if (windowWidth <= 768) {
+      return { gridTemplateColumns: '1fr 1fr' };
+    }
+    return { gridTemplateColumns: '1fr 1fr 1fr 1fr' };
+  }, [windowWidth]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -168,10 +190,10 @@ const MyAccount = () => {
               />
             </div>
 
-            <div>
+            <div style={{ overflow: 'hidden' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                 <MapPin size={14} />
-                Dirección
+                Dirección de envío
               </label>
               <input
                 type="text"
@@ -179,16 +201,32 @@ const MyAccount = () => {
                 value={formData.address}
                 onChange={handleChange}
                 placeholder="Calle y número"
-                style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem', marginBottom: '0.5rem' }}
+                style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem', marginBottom: '0.5rem', boxSizing: 'border-box' }}
               />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+              <div style={{ display: 'grid', gap: '0.5rem', ...getGridStyle(), minWidth: 0, width: '100%' }}>
+                <select
+                  name="country"
+                  value={formData.country}
+                  onChange={handleChange}
+                  style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.9rem', boxSizing: 'border-box', minWidth: 0 }}
+                >
+                  <option value="">País</option>
+                  <option value="MX">México</option>
+                  <option value="US">Estados Unidos</option>
+                  <option value="CA">Canadá</option>
+                  <option value="ES">España</option>
+                  <option value="AR">Argentina</option>
+                  <option value="CO">Colombia</option>
+                  <option value="CL">Chile</option>
+                  <option value="PE">Perú</option>
+                </select>
                 <input
                   type="text"
                   name="city"
                   value={formData.city}
                   onChange={handleChange}
                   placeholder="Ciudad"
-                  style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.9rem' }}
+                  style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.9rem', boxSizing: 'border-box', minWidth: 0 }}
                 />
                 <input
                   type="text"
@@ -196,7 +234,7 @@ const MyAccount = () => {
                   value={formData.state}
                   onChange={handleChange}
                   placeholder="Estado"
-                  style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.9rem' }}
+                  style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.9rem', boxSizing: 'border-box', minWidth: 0 }}
                 />
                 <input
                   type="text"
@@ -204,7 +242,36 @@ const MyAccount = () => {
                   value={formData.zipCode}
                   onChange={handleChange}
                   placeholder="CP"
-                  style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.9rem' }}
+                  style={{ 
+                    padding: '12px 14px', 
+                    background: 'rgba(0,0,0,0.3)', 
+                    border: '1px solid var(--glass-border)', 
+                    color: 'var(--text-primary)', 
+                    borderRadius: '8px', 
+                    outline: 'none', 
+                    fontSize: '0.9rem',
+                    boxSizing: 'border-box', 
+                    minWidth: 0,
+                    gridColumn: windowWidth <= 768 && windowWidth > 480 ? 'span 2' : 'auto'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.5rem', gridTemplateColumns: '1fr 1fr' }}>
+                <input
+                  type="text"
+                  name="betweenStreets"
+                  value={formData.betweenStreets}
+                  onChange={handleChange}
+                  placeholder="Entre calles (opcional)"
+                  style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.9rem', boxSizing: 'border-box', width: '100%' }}
+                />
+                <input
+                  type="text"
+                  name="houseReference"
+                  value={formData.houseReference}
+                  onChange={handleChange}
+                  placeholder="Referencias de la casa (opcional)"
+                  style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.9rem', boxSizing: 'border-box', width: '100%' }}
                 />
               </div>
             </div>

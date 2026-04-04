@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Trash2, ShoppingCart, ArrowRight } from 'lucide-react';
+import { Heart, Trash2, ShoppingCart, ArrowRight, LogIn } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
+import { useUser } from '../context/UserContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { getGameValue } from '../services/api';
@@ -20,27 +21,59 @@ const GAMES = {
 const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
 
 const Wishlist = () => {
-  const { items, removeItem, clearWishlist } = useWishlist();
+  const { items, removeItem, clearWishlist, loading } = useWishlist();
   const { addItem } = useCart();
+  const { isLoggedIn } = useUser();
   const toast = useToast();
 
   const handleAddToCart = (item) => {
+    const itemId = item.cardId || item.productId;
     addItem({
-      id: item.cardId,
+      id: itemId,
       name: item.name,
       price: item.price,
       image: item.imageUrl,
       game: item.game,
       rarity: item.rarity
     });
-    removeItem(item.cardId);
+    removeItem(item);
     toast.success(`${item.name} agregado al carrito`);
   };
 
-  const handleRemove = (cardId, name) => {
-    removeItem(cardId);
+  const handleRemove = (item, name) => {
+    removeItem(item);
     toast.info(`${name} eliminado de favoritos`);
   };
+
+  if (!isLoggedIn) {
+    return (
+      <div className="page" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+        <SEO title="Mis Favoritos" description="Tu lista de deseos de cartas coleccionables" />
+        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔐</div>
+        <h1 className="h2-premium">Inicia sesión para ver tus favoritos</h1>
+        <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', marginBottom: '2rem' }}>
+          Tus favoritos se sincronizarán automáticamente entre todos tus dispositivos
+        </p>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link to="/login" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            <LogIn size={18} /> Iniciar Sesión
+          </Link>
+          <Link to="/catalogo" className="btn-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            Ver Catálogo <ArrowRight size={18} />
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="page" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⏳</div>
+        <p style={{ color: 'var(--text-secondary)' }}>Cargando favoritos...</p>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -89,17 +122,19 @@ const Wishlist = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
         {items.map(item => {
+          const itemId = item.cardId || item.productId;
           const gameKey = getGameValue(item.game);
           const game = GAMES[gameKey] || { name: item.game, icon: '🎴', color: '#6366f1' };
+          const isProduct = item.type === 'product';
           
           return (
             <div 
-              key={item.cardId}
+              key={itemId}
               className="glass-card"
               style={{ padding: '1.5rem', position: 'relative' }}
             >
               <button
-                onClick={() => handleRemove(item.cardId, item.name)}
+                onClick={() => handleRemove(item, item.name)}
                 style={{
                   position: 'absolute',
                   top: '0.75rem',
@@ -119,7 +154,7 @@ const Wishlist = () => {
                 <Trash2 size={14} />
               </button>
 
-              <Link to={`/producto/${item.cardId}`}>
+              <Link to={`/producto/${itemId}`}>
                 <div style={{
                   width: '100%',
                   height: '160px',
@@ -166,9 +201,21 @@ const Wishlist = () => {
                     {item.rarity}
                   </span>
                 )}
+                {isProduct && item.set && (
+                  <span style={{ 
+                    background: 'var(--bg-tertiary)', 
+                    color: 'var(--text-secondary)', 
+                    padding: '4px 8px', 
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    textTransform: 'capitalize'
+                  }}>
+                    {item.set.replace(/-/g, ' ')}
+                  </span>
+                )}
               </div>
 
-              <Link to={`/producto/${item.cardId}`} style={{ textDecoration: 'none' }}>
+              <Link to={`/producto/${itemId}`} style={{ textDecoration: 'none' }}>
                 <h3 style={{ 
                   fontSize: '1rem', 
                   fontWeight: '600', 
@@ -180,7 +227,7 @@ const Wishlist = () => {
                 </h3>
               </Link>
 
-              {item.set && (
+              {item.set && !isProduct && (
                 <p style={{ 
                   color: 'var(--text-secondary)', 
                   fontSize: '0.875rem',

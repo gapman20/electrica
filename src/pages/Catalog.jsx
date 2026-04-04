@@ -69,14 +69,15 @@ const SingleCard = ({ card, onAddToCart }) => {
   const [isHovered, setIsHovered] = useState(false);
   const { isInWishlist, toggleItem } = useWishlist();
   const toast = useToast();
+  const isLoggedIn = !!localStorage.getItem('tcg_user');
   
   const rarityColor = RARITY_COLORS[card.rarity] || '#9ca3af';
-  const wishlisted = isInWishlist(card.id);
+  const wishlisted = isInWishlist(card.id, 'card');
   
   const handleToggleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const wasAdded = toggleItem(card);
+    const wasAdded = toggleItem({ ...card, type: 'card' });
     if (wasAdded) {
       toast.success(`${card.name} añadido a favoritos`);
     } else {
@@ -108,12 +109,14 @@ const SingleCard = ({ card, onAddToCart }) => {
         )}
         
         <div className={`product-actions ${isHovered || window.innerWidth < 768 ? 'visible' : ''}`}>
-          <button 
-            className="action-btn wishlist-btn"
-            onClick={handleToggleWishlist}
-          >
-            <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
-          </button>
+          {isLoggedIn && (
+            <button 
+              className="action-btn wishlist-btn"
+              onClick={handleToggleWishlist}
+            >
+              <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
+            </button>
+          )}
           <button className="action-btn cart-btn" onClick={() => onAddToCart(card)}>
             <ShoppingCart size={20} />
           </button>
@@ -228,7 +231,9 @@ const Catalog = () => {
       name: card.name,
       price: card.price,
       image: card.image,
-      game: card.game
+      game: card.game,
+      rarity: card.rarity,
+      stock: card.stock
     });
   };
   

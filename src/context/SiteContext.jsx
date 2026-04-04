@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { CartProvider } from './CartContext';
 import { OrderProvider } from './OrderContext';
 import { authApi, contactApi } from '../services/api';
 
@@ -649,11 +648,9 @@ export const SiteProvider = ({ children }) => {
       saveContent, resetContent, saveStatus, loadingDb,
       user,
     }}>
-      <CartProvider user={user}>
-        <OrderProvider>
-          {children}
-        </OrderProvider>
-      </CartProvider>
+      <OrderProvider>
+        {children}
+      </OrderProvider>
     </SiteContext.Provider>
   );
 };

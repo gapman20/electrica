@@ -112,7 +112,8 @@ const Checkout = () => {
       const order = await createOrder({
         email: formData.email.toLowerCase(),
         items: items.map(item => ({
-          cardId: item.cardId,
+          cardId: item.itemType === 'CARD' ? item.itemId : null,
+          productId: item.itemType === 'PRODUCT' ? item.itemId : null,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
@@ -288,7 +289,7 @@ const Checkout = () => {
           <h3>Resumen del pedido</h3>
           <div className="checkout-items">
             {items.map(item => (
-              <div key={item.cardId} className="checkout-item">
+              <div key={item.cartId} className="checkout-item">
                 <div className="checkout-item-info">
                   <p className="checkout-item-name">{item.name}</p>
                   <p className="checkout-item-qty">Qty: {item.quantity}</p>
@@ -335,7 +336,7 @@ const Checkout = () => {
           <div className="checkout-summary-expanded">
             <div className="checkout-items-mobile">
               {items.map(item => (
-                <div key={item.cardId} className="checkout-item-mobile">
+                <div key={item.cartId} className="checkout-item-mobile">
                   <span>{item.name} x{item.quantity}</span>
                   <span>{formatPrice(item.price * item.quantity)}</span>
                 </div>

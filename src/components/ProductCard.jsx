@@ -12,6 +12,7 @@ const ProductCard = ({ card }) => {
   const { getActiveCampaign, calculateDiscountedPrice } = useSite();
   const toast = useToast();
   const isOutOfStock = card.stock <= 0;
+  const isLoggedIn = !!localStorage.getItem('tcg_user');
 
   const activeCampaign = getActiveCampaign ? getActiveCampaign() : null;
   const hasCampaignDiscount = activeCampaign && !card.discountPercent;
@@ -35,7 +36,7 @@ const ProductCard = ({ card }) => {
   const handleToggleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const wasAdded = toggleItem(card);
+    const wasAdded = toggleItem({ ...card, type: 'card' });
     if (wasAdded) {
       toast.success(`${card.name} añadido a favoritos`);
     } else {
@@ -52,7 +53,7 @@ const ProductCard = ({ card }) => {
     }
   };
 
-  const wishlisted = isInWishlist(card.id);
+  const wishlisted = isInWishlist(card.id, 'card');
 
   return (
     <div className="product-card glass-card">
@@ -68,43 +69,31 @@ const ProductCard = ({ card }) => {
           <div className="product-card-out-of-stock">Sin Stock</div>
         )}
         {hasDiscount && (
-          <div 
-            className="product-card-out-of-stock"
-            style={{ background: activeCampaign?.bannerColor || '#10b981', top: '8px', right: '8px', left: 'auto' }}
-          >
-            <Tag size={12} style={{ marginRight: '4px' }} />
-            {activeCampaign ? `${activeCampaign.discountPercent}% OFF` : `-${card.discountPercent}%`}
-          </div>
+          <div className="product-card-discount">-{card.discountPercent}%</div>
         )}
-        {card.rarity && (
-          <span 
-            className="product-card-rarity"
-            style={{ '--rarity-color': getGameColor(card.game) }}
+        {isLoggedIn && (
+          <button
+            className="product-card-wishlist"
+            onClick={handleToggleWishlist}
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'rgba(0,0,0,0.6)',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backdropFilter: 'blur(4px)'
+            }}
           >
-            {card.rarity}
-          </span>
+            <Heart size={16} fill={wishlisted ? '#ef4444' : 'none'} color={wishlisted ? '#ef4444' : '#fff'} />
+          </button>
         )}
-        <button
-          className="product-card-wishlist"
-          onClick={handleToggleWishlist}
-          style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px',
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: 'rgba(0,0,0,0.6)',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(4px)'
-          }}
-        >
-          <Heart size={16} fill={wishlisted ? '#ef4444' : 'none'} color={wishlisted ? '#ef4444' : '#fff'} />
-        </button>
       </div>
       <div className="product-card-content">
         <h3 className="product-card-name">{card.name}</h3>

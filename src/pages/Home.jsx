@@ -33,15 +33,16 @@ const ProductCard = ({ product, onAddToCart }) => {
   const [isHovered, setIsHovered] = useState(false);
   const { isInWishlist, toggleItem } = useWishlist();
   const toast = useToast();
+  const isLoggedIn = !!localStorage.getItem('tcg_user');
   
   const hasDiscount = product.originalPrice && product.originalPrice !== product.price;
   const badgeClass = product.badge ? product.badge.toLowerCase().replace(/[^a-z]/g, '') : '';
-  const wishlisted = isInWishlist(product.id);
+  const wishlisted = isInWishlist(product.id, 'product');
   
   const handleToggleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const wasAdded = toggleItem(product);
+    const wasAdded = toggleItem({ ...product, type: 'product' });
     if (wasAdded) {
       toast.success(`${product.name} añadido a favoritos`);
     } else {
@@ -77,12 +78,14 @@ const ProductCard = ({ product, onAddToCart }) => {
         )}
         
         <div className={`product-actions ${isHovered || window.innerWidth < 768 ? 'visible' : ''}`}>
-          <button 
-            className="action-btn wishlist-btn"
-            onClick={handleToggleWishlist}
-          >
-            <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
-          </button>
+          {isLoggedIn && (
+            <button 
+              className="action-btn wishlist-btn"
+              onClick={handleToggleWishlist}
+            >
+              <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
+            </button>
+          )}
           <button className="action-btn cart-btn" onClick={() => onAddToCart(product)}>
             <ShoppingCart size={20} />
           </button>
@@ -269,7 +272,8 @@ const Home = () => {
       name: product.name,
       price: product.price,
       image: product.image,
-      game: product.game
+      game: product.game,
+      stock: product.stock
     });
   };
 

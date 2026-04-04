@@ -111,16 +111,56 @@ export const productApi = {
 
 // ─── Cart API ────────────────────────────────────────────────────────────────
 export const cartApi = {
-  get: () => {
+  get: async () => {
+    const data = await apiRequest('/cart');
+    return data || [];
+  },
+
+  add: async (item) => {
+    const { cardId, productId, quantity = 1 } = item;
+    const data = await apiRequest('/cart', {
+      method: 'POST',
+      body: JSON.stringify({ cardId, productId, quantity })
+    });
+    return data;
+  },
+
+  update: async (id, quantity) => {
+    const data = await apiRequest(`/cart/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ quantity })
+    });
+    return data;
+  },
+
+  remove: async (id) => {
+    await apiRequest(`/cart/${id}`, { method: 'DELETE' });
+    return true;
+  },
+
+  clear: async () => {
+    await apiRequest('/cart', { method: 'DELETE' });
+    return true;
+  },
+
+  merge: async (items) => {
+    const data = await apiRequest('/cart/merge', {
+      method: 'POST',
+      body: JSON.stringify({ items })
+    });
+    return data || [];
+  },
+
+  getLocal: () => {
     return JSON.parse(localStorage.getItem('tcg_cart') || '[]');
   },
 
-  save: (items) => {
+  saveLocal: (items) => {
     localStorage.setItem('tcg_cart', JSON.stringify(items));
     return items;
   },
 
-  clear: () => {
+  clearLocal: () => {
     localStorage.removeItem('tcg_cart');
     return true;
   },
@@ -192,14 +232,15 @@ export const authApi = {
   },
 
   register: async (email, password, name) => {
-    const data = await apiRequest('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) });
-    if (data.token) {
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('is_authenticated', 'true');
-      localStorage.setItem('tcg_user', JSON.stringify(data.user));
-      return { success: true, user: data.user };
+    try {
+      const data = await apiRequest('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) });
+      if (data.user && data.token) {
+        return { success: true };
+      }
+      return { success: false };
+    } catch (error) {
+      return { success: false };
     }
-    return { success: false };
   },
 
   logout: async () => {
@@ -226,28 +267,25 @@ export const authApi = {
 
 // ─── Wishlist API ──────────────────────────────────────────────────────────────
 export const wishlistApi = {
-  get: () => {
-    return JSON.parse(localStorage.getItem('tcg_wishlist') || '[]');
+  get: async () => {
+    const data = await apiRequest('/wishlist');
+    return data || [];
   },
 
-  add: (itemId) => {
-    const wishlist = JSON.parse(localStorage.getItem('tcg_wishlist') || '[]');
-    if (!wishlist.includes(itemId)) {
-      wishlist.push(itemId);
-      localStorage.setItem('tcg_wishlist', JSON.stringify(wishlist));
-    }
-    return wishlist;
+  add: async (item) => {
+    const { cardId, productId } = item;
+    const data = await apiRequest('/wishlist', { 
+      method: 'POST', 
+      body: JSON.stringify({ cardId, productId }) 
+    });
+    return data;
   },
 
-  remove: (itemId) => {
-    const wishlist = JSON.parse(localStorage.getItem('tcg_wishlist') || '[]');
-    const filtered = wishlist.filter(id => id !== itemId);
-    localStorage.setItem('tcg_wishlist', JSON.stringify(filtered));
-    return filtered;
-  },
-
-  clear: () => {
-    localStorage.removeItem('tcg_wishlist');
+  remove: async (item) => {
+    const { cardId, productId } = item;
+    const type = cardId ? 'card' : 'product';
+    const id = cardId || productId;
+    await apiRequest(`/wishlist/${type}/${id}`, { method: 'DELETE' });
     return true;
   },
 };

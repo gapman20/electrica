@@ -8,6 +8,8 @@ const UserContext = createContext(null);
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loginCallbacks, setLoginCallbacks] = useState([]);
+  const [logoutCallbacks, setLogoutCallbacks] = useState([]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem(USER_KEY);
@@ -27,6 +29,7 @@ export const UserProvider = ({ children }) => {
       const result = await authApi.login(email, password);
       if (result.success) {
         setUser(result.user);
+        loginCallbacks.forEach(cb => cb(result.user));
         return result;
       }
       return result;
@@ -37,6 +40,7 @@ export const UserProvider = ({ children }) => {
   };
 
   const logout = () => {
+    logoutCallbacks.forEach(cb => cb());
     authApi.logout();
     setUser(null);
   };
@@ -48,13 +52,23 @@ export const UserProvider = ({ children }) => {
     setUser(updatedUser);
   };
 
+  const onLogin = (callback) => {
+    setLoginCallbacks(prev => [...prev, callback]);
+  };
+
+  const onLogout = (callback) => {
+    setLogoutCallbacks(prev => [...prev, callback]);
+  };
+
   const value = {
     user,
     loading,
     isLoggedIn: !!user,
     login,
     logout,
-    updateUser
+    updateUser,
+    onLogin,
+    onLogout
   };
 
   return (

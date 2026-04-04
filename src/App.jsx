@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { SiteProvider, useSite } from './context/SiteContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { UserProvider } from './context/UserContext';
+import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './components/Toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -109,13 +110,15 @@ const AppContent = () => {
 const App = () => {
   return (
     <SiteProvider>
-      <WishlistProvider>
-        <UserProvider>
-          <ToastProvider>
-            <AppContent />
-          </ToastProvider>
-        </UserProvider>
-      </WishlistProvider>
+      <UserProvider>
+        <CartProvider>
+          <WishlistProvider>
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
+          </WishlistProvider>
+        </CartProvider>
+      </UserProvider>
     </SiteProvider>
   );
 };

@@ -38,7 +38,7 @@ const Cart = () => {
       <div className="cart-page-layout">
         <div className="cart-items">
           {items.map(item => (
-            <div key={item.cardId} className="cart-item-card glass-card">
+            <div key={item.cartId} className="cart-item-card glass-card">
               {item.imageUrl && (
                 <div className="cart-item-image">
                   <img src={item.imageUrl} alt={item.name} />
@@ -53,11 +53,19 @@ const Cart = () => {
               </div>
               <div className="cart-item-actions">
                 <div className="quantity-controls-inline">
-                  <button onClick={() => updateQuantity(item.cardId, item.quantity - 1)}>-</button>
-                  <span>{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.cardId, item.quantity + 1)}>+</button>
+                  <button 
+                    onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
+                    disabled={item.quantity <= 1}
+                    style={{ opacity: item.quantity <= 1 ? 0.4 : 1 }}
+                  >−</button>
+                  <span className="quantity-number">{item.quantity}</span>
+                  <button 
+                    onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
+                    disabled={item.quantity >= item.stock}
+                    style={{ opacity: item.quantity >= item.stock ? 0.4 : 1 }}
+                  >+</button>
                 </div>
-                <button onClick={() => removeItem(item.cardId)} className="remove-btn">
+                <button onClick={() => removeItem(item.cartId)} className="remove-btn">
                   Eliminar
                 </button>
                 <p className="cart-item-total">{formatPrice(item.price * item.quantity)}</p>

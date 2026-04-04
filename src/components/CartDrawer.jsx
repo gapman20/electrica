@@ -32,7 +32,7 @@ const CartDrawer = () => {
             </div>
           ) : (
             items.map(item => (
-              <div key={item.cardId} className="cart-drawer-item">
+              <div key={item.cartId} className="cart-drawer-item">
                 <div className="cart-drawer-item-image">
                   {item.imageUrl ? (
                     <img src={item.imageUrl} alt={item.name} />
@@ -48,22 +48,26 @@ const CartDrawer = () => {
                 <div className="cart-drawer-item-actions">
                   <div className="cart-drawer-quantity">
                     <button 
-                      onClick={() => updateQuantity(item.cardId, item.quantity - 1)}
+                      onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
                       aria-label="Disminuir cantidad"
+                      disabled={item.quantity <= 1}
+                      style={{ opacity: item.quantity <= 1 ? 0.4 : 1 }}
                     >
                       <Minus size={14} />
                     </button>
-                    <span>{item.quantity}</span>
+                    <span className="quantity-number">{item.quantity}</span>
                     <button 
-                      onClick={() => updateQuantity(item.cardId, item.quantity + 1)}
+                      onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
                       aria-label="Aumentar cantidad"
+                      disabled={item.quantity >= item.stock}
+                      style={{ opacity: item.quantity >= item.stock ? 0.4 : 1 }}
                     >
                       <Plus size={14} />
                     </button>
                   </div>
                   <button 
                     className="cart-drawer-remove"
-                    onClick={() => removeItem(item.cardId)}
+                    onClick={() => removeItem(item.cartId)}
                     aria-label="Eliminar item"
                   >
                     <Trash2 size={16} />

@@ -42,7 +42,7 @@ const Navbar = () => {
     { path: '/', name: 'Inicio' },
     { path: '/productos', name: 'Productos' },
     { path: '/catalogo', name: 'Cartas Sueltas' },
-    { path: '/mis-deseos', name: 'Favoritos' },
+    ...(isLoggedIn ? [{ path: '/mis-deseos', name: 'Favoritos' }] : []),
     { path: '/mis-pedidos', name: 'Mis Pedidos' },
   ];
 
