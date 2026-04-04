@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { authApi } from '../services/api';
+import { googleAuth } from '../services/googleAuth';
 import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
 
@@ -15,6 +16,11 @@ const Register = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    googleAuth.init();
+    googleAuth.renderButton('google-signin-btn');
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -153,6 +159,14 @@ const Register = () => {
             {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
           </button>
         </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1.5rem 0' }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>o</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
+        </div>
+
+        <div id="google-signin-btn" style={{ display: 'flex', justifyContent: 'center' }}></div>
 
         <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           ¿Ya tienes cuenta? <Link to="/login" style={{ color: 'var(--accent-gold)', textDecoration: 'none' }}>Inicia sesión</Link>

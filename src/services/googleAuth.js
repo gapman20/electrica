@@ -1,13 +1,16 @@
 // Google OAuth Service
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+let initialized = false;
 
 export const googleAuth = {
   init: () => {
+    if (initialized) return;
     if (window.google?.accounts?.id) {
       window.google.accounts.id.initialize({
         client_id: CLIENT_ID,
         callback: handleCredentialResponse,
       });
+      initialized = true;
     }
   },
 
