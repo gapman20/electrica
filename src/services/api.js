@@ -12,7 +12,7 @@ async function apiRequest(endpoint, options = {}) {
     'Content-Type': 'application/json',
   };
 
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('token');
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`;
   }

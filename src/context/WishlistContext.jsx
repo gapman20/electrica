@@ -6,9 +6,9 @@ const WishlistContext = createContext(null);
 
 export const WishlistProvider = ({ children }) => {
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { isLoggedIn } = useUser();
+  const { isLoggedIn, loading: userLoading } = useUser();
   const isLoggedInRef = useRef(isLoggedIn);
   
   useEffect(() => {
@@ -16,9 +16,11 @@ export const WishlistProvider = ({ children }) => {
   }, [isLoggedIn]);
 
   const fetchWishlist = useCallback(async () => {
-    if (!isLoggedInRef.current) {
+    const token = localStorage.getItem('token');
+    if (!token) {
       setItems([]);
       setLoading(false);
+      setError(null);
       return;
     }
 
@@ -40,7 +42,9 @@ export const WishlistProvider = ({ children }) => {
         addedAt: item.createdAt
       })));
     } catch (err) {
-      console.error('Error fetching wishlist:', err);
+      if (err.message !== 'No token provided') {
+        console.error('Error fetching wishlist:', err);
+      }
       setError(err.message);
       setItems([]);
     } finally {
@@ -49,8 +53,16 @@ export const WishlistProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    fetchWishlist();
-  }, [fetchWishlist, isLoggedIn]);
+    if (userLoading) return;
+    
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchWishlist();
+    } else {
+      setItems([]);
+      setLoading(false);
+    }
+  }, [fetchWishlist, isLoggedIn, userLoading]);
 
   const addItem = useCallback(async (item) => {
     if (!isLoggedInRef.current) {
@@ -157,7 +169,7 @@ export const WishlistProvider = ({ children }) => {
       getWishlist,
       clearWishlist,
       toggleItem,
-      refreshWishlist: fetchWishlist
+      refreshWishlist: fetchWishlist,
     }}>
       {children}
     </WishlistContext.Provider>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { cartApi } from '../services/api';
 
 const CART_STORAGE_KEY = 'tcg_cart';
@@ -24,9 +24,9 @@ const normalizeCartItem = (dbItem) => {
 export const CartProvider = ({ children }) => {
   const [items, setItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const isLoggedIn = () => !!localStorage.getItem('auth_token');
+  const isLoggedIn = () => !!localStorage.getItem('token');
 
   const loadCart = useCallback(async () => {
     setIsLoading(true);
@@ -38,7 +38,9 @@ export const CartProvider = ({ children }) => {
         setItems(cartApi.getLocal());
       }
     } catch (error) {
-      console.error('Error loading cart:', error);
+      if (error.message !== 'No token provided') {
+        console.error('Error loading cart:', error);
+      }
       setItems(cartApi.getLocal());
     } finally {
       setIsLoading(false);

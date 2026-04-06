@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { authApi } from '../services/api';
-import { googleAuth } from '../services/googleAuth';
+import { useUser } from '../context/UserContext';
 import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { setUser } = useUser();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,8 +19,74 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    googleAuth.init();
-    googleAuth.renderButton('google-signin-btn');
+    const initGoogle = () => {
+      if (window.google?.accounts?.id && document.getElementById('google-signin-btn')) {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: (response) => {
+            if (response.credential) {
+              fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/google`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ googleToken: response.credential }),
+              })
+              .then(res => res.json())
+              .then(data => {
+                if (data.token) {
+                  localStorage.setItem('token', data.token);
+                  localStorage.setItem('tcg_user', JSON.stringify(data.user));
+                  setUser(data.user);
+                  Swal.fire({
+                    icon: 'success',
+                    title: '¡Cuenta creada!',
+                    text: `Bienvenido ${data.user?.name || 'Usuario'}`,
+                    confirmButtonColor: '#d4af37',
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    color: '#fff',
+                  }).then(() => navigate('/'));
+                } else {
+                  Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.error || 'No se pudo registrar con Google',
+                    confirmButtonColor: '#d4af37',
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    color: '#fff',
+                  });
+                }
+              })
+              .catch(err => {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: err.message,
+                  confirmButtonColor: '#d4af37',
+                  background: 'rgba(15, 23, 42, 0.95)',
+                  color: '#fff',
+                });
+              });
+            }
+          }
+        });
+
+        window.google.accounts.id.renderButton(
+          document.getElementById('google-signin-btn'),
+          { theme: 'outline', size: 'large', text: 'continue_with' }
+        );
+      }
+    };
+
+    // Load Google script if not already loaded
+    if (!window.google?.accounts?.id) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = initGoogle;
+      document.head.appendChild(script);
+    } else {
+      initGoogle();
+    }
   }, []);
 
   const handleChange = (e) => {

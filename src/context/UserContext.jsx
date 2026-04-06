@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../services/api';
 
 const USER_KEY = 'tcg_user';
+const TOKEN_KEY = 'token';
 
 const UserContext = createContext(null);
 
@@ -13,12 +14,15 @@ export const UserProvider = ({ children }) => {
 
   useEffect(() => {
     const savedUser = localStorage.getItem(USER_KEY);
-    if (savedUser) {
+    const savedToken = localStorage.getItem(TOKEN_KEY);
+    
+    if (savedUser && savedToken) {
       try {
         setUser(JSON.parse(savedUser));
       } catch (e) {
         console.error('Error parsing user data:', e);
         localStorage.removeItem(USER_KEY);
+        localStorage.removeItem(TOKEN_KEY);
       }
     }
     setLoading(false);
@@ -62,6 +66,7 @@ export const UserProvider = ({ children }) => {
 
   const value = {
     user,
+    setUser,
     loading,
     isLoggedIn: !!user,
     login,
