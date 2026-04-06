@@ -5,7 +5,7 @@ import { useCart } from '../context/CartContext';
 import { getGameValue } from '../services/api';
 
 const CartDrawer = () => {
-  const { items, subtotal, itemCount, isCartOpen, closeCart, updateQuantity, removeItem } = useCart();
+  const { items, subtotal, itemCount, isCartOpen, closeCart, updateQuantity, removeItem, isLoading } = useCart();
 
   const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
 
@@ -23,7 +23,11 @@ const CartDrawer = () => {
         </div>
         
         <div className="cart-drawer-items">
-          {items.length === 0 ? (
+          {isLoading ? (
+            <div className="cart-drawer-empty">
+              <p>Cargando carrito...</p>
+            </div>
+          ) : items.length === 0 ? (
             <div className="cart-drawer-empty">
               <p>Tu carrito está vacío</p>
               <Link to="/catalogo" className="btn-primary" onClick={closeCart}>

@@ -6,10 +6,23 @@ import { getGameValue } from '../services/api';
 import SEO from '../components/SEO';
 
 const Cart = () => {
-  const { items, subtotal, itemCount, updateQuantity, removeItem, clearCart } = useCart();
+  const { items, subtotal, itemCount, updateQuantity, removeItem, clearCart, isLoading } = useCart();
   const [showSummary, setShowSummary] = useState(false);
 
   const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
+
+  if (isLoading) {
+    return (
+      <>
+        <SEO title="Carrito" description="Tu carrito de compras" />
+        <div className="page">
+          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+            <p>Cargando carrito...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (items.length === 0) {
     return (

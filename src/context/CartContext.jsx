@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { cartApi } from '../services/api';
-
-const CART_STORAGE_KEY = 'tcg_cart';
+import { useUser } from './UserContext';
 
 const CartContext = createContext(null);
 
@@ -25,162 +24,97 @@ export const CartProvider = ({ children }) => {
   const [items, setItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  const isLoggedIn = () => !!localStorage.getItem('token');
+  const { user, logout } = useUser();
 
   const loadCart = useCallback(async () => {
     setIsLoading(true);
     try {
-      if (isLoggedIn()) {
-        const dbItems = await cartApi.get();
-        setItems(Array.isArray(dbItems) ? dbItems.map(normalizeCartItem) : []);
-      } else {
-        setItems(cartApi.getLocal());
-      }
+      const dbItems = await cartApi.get();
+      setItems(Array.isArray(dbItems) ? dbItems.map(normalizeCartItem) : []);
     } catch (error) {
-      if (error.message !== 'No token provided') {
-        console.error('Error loading cart:', error);
-      }
-      setItems(cartApi.getLocal());
+      console.error('Error loading cart:', error);
+      setItems([]);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadCart();
-  }, [loadCart]);
-
-  useEffect(() => {
-    const handleStorage = () => {
-      if (!isLoggedIn()) {
-        setItems(cartApi.getLocal());
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+    if (user) {
+      loadCart();
+    } else {
+      setItems([]);
+      setIsLoading(false);
+    }
+  }, [user, loadCart]);
 
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const addItem = useCallback(async (item) => {
-    const cardId = item.id;
-    const productId = item.id;
-    const isProduct = !item.rarity;
-    const stock = item.stock || 999;
+    if (!user) return;
 
+    const stock = item.stock || 999;
     if (stock === 0) return;
 
-    if (isLoggedIn()) {
-      try {
-        const dbItem = await cartApi.add({ cardId: isProduct ? null : cardId, productId: isProduct ? productId : null });
-        const normalized = normalizeCartItem(dbItem);
-        setItems(prev => {
-          const existing = prev.find(i => 
-            (normalized.cardId && i.cardId === normalized.cardId) ||
-            (normalized.productId && i.productId === normalized.productId)
-          );
-          if (existing) {
-            if (existing.quantity >= stock) return prev;
-            return prev.map(i =>
-              (normalized.cardId && i.cardId === normalized.cardId) ||
-              (normalized.productId && i.productId === normalized.productId)
-                ? { ...i, quantity: Math.min(i.quantity + 1, stock) }
-                : i
-            );
-          }
-          return [...prev, normalized];
-        });
-      } catch (error) {
-        console.error('Error adding to cart:', error);
-      }
-    } else {
-      setItems(prev => {
-        const existing = prev.find(i => i.cardId === item.id || i.productId === item.id);
-        let updated;
-        if (existing) {
-          if (existing.quantity >= stock) return prev;
-          updated = prev.map(i =>
-            (i.cardId === item.id || i.productId === item.id)
-              ? { ...i, quantity: Math.min(i.quantity + 1, stock) }
-              : i
-          );
-        } else {
-          updated = [...prev, {
-            cardId: isProduct ? null : item.id,
-            productId: isProduct ? item.id : null,
-            name: item.name,
-            price: item.price,
-            quantity: 1,
-            imageUrl: item.imageUrl || item.image,
-            stock: item.stock,
-            game: item.game,
-            rarity: item.rarity,
-          }];
-        }
-        cartApi.saveLocal(updated);
-        return updated;
+    try {
+      const dbItem = await cartApi.add({ 
+        cardId: item.rarity ? item.id : null, 
+        productId: !item.rarity ? item.id : null 
       });
+      const normalized = normalizeCartItem(dbItem);
+      setItems(prev => {
+        const exists = prev.some(i => 
+          (normalized.cardId && i.cardId === normalized.cardId) ||
+          (normalized.productId && i.productId === normalized.productId)
+        );
+        if (exists) return prev;
+        return [...prev, normalized];
+      });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
     }
-  }, []);
+  }, [user]);
 
   const removeItem = useCallback(async (cartId) => {
-    if (isLoggedIn()) {
-      try {
-        await cartApi.remove(cartId);
-        setItems(prev => prev.filter(item => item.cartId !== cartId));
-      } catch (error) {
-        console.error('Error removing from cart:', error);
-      }
-    } else {
-      setItems(prev => {
-        const updated = prev.filter(item => item.cartId !== cartId);
-        cartApi.saveLocal(updated);
-        return updated;
-      });
+    if (!user) return;
+
+    try {
+      await cartApi.remove(cartId);
+      setItems(prev => prev.filter(item => item.cartId !== cartId));
+    } catch (error) {
+      console.error('Error removing from cart:', error);
     }
-  }, []);
+  }, [user]);
 
   const updateQuantity = useCallback(async (cartId, quantity) => {
+    if (!user) return;
+
     if (quantity < 1) {
       removeItem(cartId);
       return;
     }
 
-    if (isLoggedIn()) {
-      try {
-        await cartApi.update(cartId, quantity);
-        setItems(prev => prev.map(item =>
-          item.cartId === cartId ? { ...item, quantity } : item
-        ));
-      } catch (error) {
-        console.error('Error updating quantity:', error);
-      }
-    } else {
-      setItems(prev => {
-        const updated = prev.map(item =>
-          item.cartId === cartId ? { ...item, quantity } : item
-        );
-        cartApi.saveLocal(updated);
-        return updated;
-      });
+    try {
+      await cartApi.update(cartId, quantity);
+      setItems(prev => prev.map(item =>
+        item.cartId === cartId ? { ...item, quantity } : item
+      ));
+    } catch (error) {
+      console.error('Error updating quantity:', error);
     }
-  }, [removeItem]);
+  }, [user, removeItem]);
 
   const clearCart = useCallback(async () => {
-    if (isLoggedIn()) {
-      try {
-        await cartApi.clear();
-        setItems([]);
-      } catch (error) {
-        console.error('Error clearing cart:', error);
-      }
-    } else {
+    if (!user) return;
+
+    try {
+      await cartApi.clear();
       setItems([]);
-      cartApi.clearLocal();
+    } catch (error) {
+      console.error('Error clearing cart:', error);
     }
-  }, []);
+  }, [user]);
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);

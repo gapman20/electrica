@@ -150,20 +150,6 @@ export const cartApi = {
     });
     return data || [];
   },
-
-  getLocal: () => {
-    return JSON.parse(localStorage.getItem('tcg_cart') || '[]');
-  },
-
-  saveLocal: (items) => {
-    localStorage.setItem('tcg_cart', JSON.stringify(items));
-    return items;
-  },
-
-  clearLocal: () => {
-    localStorage.removeItem('tcg_cart');
-    return true;
-  },
 };
 
 // ─── Order API ───────────────────────────────────────────────────────────────
@@ -244,8 +230,8 @@ export const authApi = {
   },
 
   logout: async () => {
+    localStorage.removeItem('token');
     localStorage.removeItem('auth_token');
-    localStorage.setItem('is_authenticated', 'false');
     localStorage.removeItem('tcg_user');
     return true;
   },
