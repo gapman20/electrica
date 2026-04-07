@@ -5,6 +5,7 @@ import { authApi } from '../services/api';
 import { useUser } from '../context/UserContext';
 import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
+import PageLoader from '../components/PageLoader';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const Register = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     const initGoogle = () => {
@@ -36,14 +38,8 @@ const Register = () => {
                   localStorage.setItem('token', data.token);
                   localStorage.setItem('tcg_user', JSON.stringify(data.user));
                   setUser(data.user);
-                  Swal.fire({
-                    icon: 'success',
-                    title: '¡Cuenta creada!',
-                    text: `Bienvenido ${data.user?.name || 'Usuario'}`,
-                    confirmButtonColor: '#d4af37',
-                    background: 'rgba(15, 23, 42, 0.95)',
-                    color: '#fff',
-                  }).then(() => navigate('/'));
+                  setRedirecting(true);
+                  setTimeout(() => navigate('/'), 300);
                 } else {
                   Swal.fire({
                     icon: 'error',
@@ -133,6 +129,10 @@ const Register = () => {
 
     setLoading(false);
   };
+
+  if (redirecting) {
+    return <PageLoader />;
+  }
 
   return (
     <>
