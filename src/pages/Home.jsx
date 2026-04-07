@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Shield, Truck, CreditCard, Package, ChevronLeft, ChevronRight,
-  Zap, Star, Clock, Tag, Sparkles, ShoppingCart, Heart
+  Zap, Star, Clock, Tag, Sparkles, ArrowRight
 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { useCart } from '../context/CartContext';
@@ -10,6 +10,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { getGameValue, productApi, cardApi } from '../services/api';
+import ProductCard from '../components/ProductCard';
 
 const formatPrice = (value) => {
   if (!value) return '';
@@ -28,99 +29,6 @@ const GameCard = ({ name, icon, color }) => (
     <span>{name}</span>
   </Link>
 );
-
-const ProductCard = ({ product, onAddToCart }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const { isInWishlist, toggleItem } = useWishlist();
-  const toast = useToast();
-  const isLoggedIn = !!localStorage.getItem('tcg_user');
-  
-  const hasDiscount = product.originalPrice && product.originalPrice !== product.price;
-  const badgeClass = product.badge ? product.badge.toLowerCase().replace(/[^a-z]/g, '') : '';
-  const wishlisted = isInWishlist(product.id, 'product');
-  
-  const handleToggleWishlist = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const wasAdded = toggleItem({ ...product, type: 'product' });
-    if (wasAdded) {
-      toast.success(`${product.name} añadido a favoritos`);
-    } else {
-      toast.info(`${product.name} eliminado de favoritos`);
-    }
-  };
-  
-  return (
-    <div 
-      className="tcg-product-card"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div className="product-image-container">
-        {product.image ? (
-          <img src={product.image} alt={product.name} className="product-image" />
-        ) : (
-          <div className="product-placeholder">
-            <Package size={48} color="var(--text-secondary)" />
-          </div>
-        )}
-        
-        {product.badge && (
-          <span className={`product-badge badge-${badgeClass}`}>
-            {product.badge}
-          </span>
-        )}
-        
-        {hasDiscount && (
-          <span className="product-badge badge-oferta">
-            -{Math.round((1 - product.price / product.originalPrice) * 100)}%
-          </span>
-        )}
-        
-        <div className={`product-actions ${isHovered || window.innerWidth < 768 ? 'visible' : ''}`}>
-          {isLoggedIn && (
-            <button 
-              className="action-btn wishlist-btn"
-              onClick={handleToggleWishlist}
-            >
-              <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
-            </button>
-          )}
-          <button className="action-btn cart-btn" onClick={() => onAddToCart(product)}>
-            <ShoppingCart size={20} />
-          </button>
-        </div>
-        
-        {product.stock === 0 && (
-          <div className="product-soldout-overlay">
-            <span>Agotado</span>
-          </div>
-        )}
-      </div>
-      
-      <div className="product-info">
-        <div className="product-tags">
-          {product.game && <span className="product-tag">{getGameValue(product.game)}</span>}
-          {product.set && <span className="product-tag">{product.set}</span>}
-        </div>
-        <h3 className="product-name">{product.name}</h3>
-        <div className="product-price">
-          <span className="price-current">{formatPrice(product.price)}</span>
-          {hasDiscount && (
-            <span className="price-original">{formatPrice(product.originalPrice)}</span>
-          )}
-        </div>
-        <button 
-          className="add-to-cart-btn"
-          onClick={() => onAddToCart(product)}
-          disabled={product.stock === 0}
-        >
-          {product.stock === 0 ? 'Agotado' : 'Agregar al carrito'}
-        </button>
-      </div>
-    </div>
-  );
-};
 
 const CountdownTimer = ({ targetDate }) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -162,13 +70,6 @@ const CountdownTimer = ({ targetDate }) => {
     </div>
   );
 };
-
-const ArrowRight = ({ size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-    <polyline points="12 5 19 12 12 19"></polyline>
-  </svg>
-);
 
 const Home = () => {
   const { addItem } = useCart ? useCart() : {};
@@ -400,7 +301,7 @@ const Home = () => {
               <p>Cargando productos...</p>
             ) : featuredProducts.length > 0 ? (
               featuredProducts.slice(0, 4).map(product => (
-                <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+                <ProductCard key={product.id} item={product} type="product" />
               ))
             ) : (
               <p>No hay productos disponibles</p>
@@ -454,7 +355,7 @@ const Home = () => {
               <p>Cargando ofertas...</p>
             ) : offers.length > 0 ? (
               offers.map(offer => (
-                <ProductCard key={offer.id} product={{ ...offer, badge: 'Oferta' }} onAddToCart={handleAddToCart} />
+                <ProductCard key={offer.id} item={{ ...offer, badge: 'Oferta' }} type="product" />
               ))
             ) : (
               <p>No hay ofertas disponibles</p>

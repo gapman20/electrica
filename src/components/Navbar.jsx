@@ -11,10 +11,21 @@ const AUTH_KEY = 'is_authenticated';
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const { itemCount } = useWishlist();
+  const { itemCount, items } = useWishlist();
   const { logout: siteLogout } = useSite();
   const location = useLocation();
   const navigate = useNavigate();
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  
+  useEffect(() => {
+    const checkToken = () => setToken(localStorage.getItem('token'));
+    window.addEventListener('storage', checkToken);
+    const interval = setInterval(checkToken, 500);
+    return () => {
+      window.removeEventListener('storage', checkToken);
+      clearInterval(interval);
+    };
+  }, []);
 
   const user = (() => {
     const savedUser = localStorage.getItem(USER_KEY);
@@ -81,7 +92,7 @@ const Navbar = () => {
                 onClick={() => setIsOpen(false)}
               >
                 {link.name}
-                {link.path === '/mis-deseos' && itemCount > 0 && (
+                {link.path === '/mis-deseos' && token && items.length > 0 && (
                   <span className="favorites-badge">{itemCount}</span>
                 )}
               </Link>

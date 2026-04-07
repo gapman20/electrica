@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Grid, List, Filter, Heart, ShoppingCart } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Grid, List, Filter, Heart, ShoppingCart, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { cardApi, gameApi } from '../services/api';
+import ProductCard from '../components/ProductCard';
 
 const formatPrice = (price) => {
   if (!price) return '';
@@ -70,6 +71,7 @@ const SingleCard = ({ card, onAddToCart }) => {
   const { isInWishlist, toggleItem } = useWishlist();
   const toast = useToast();
   const isLoggedIn = !!localStorage.getItem('tcg_user');
+  const [addedToCart, setAddedToCart] = useState(false);
   
   const rarityColor = RARITY_COLORS[card.rarity] || '#9ca3af';
   const wishlisted = isInWishlist(card.id, 'card');
@@ -83,6 +85,15 @@ const SingleCard = ({ card, onAddToCart }) => {
     } else {
       toast.info(`${card.name} eliminado de favoritos`);
     }
+  };
+
+  const handleAddToCart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (card.stock === 0) return;
+    onAddToCart(card);
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
   };
   
   return (
@@ -117,8 +128,8 @@ const SingleCard = ({ card, onAddToCart }) => {
               <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
             </button>
           )}
-          <button className="action-btn cart-btn" onClick={() => onAddToCart(card)}>
-            <ShoppingCart size={20} />
+          <button className={`action-btn cart-btn ${addedToCart ? 'added' : ''}`} onClick={handleAddToCart}>
+            {addedToCart ? <Check size={20} /> : <ShoppingCart size={20} />}
           </button>
         </div>
         
@@ -140,10 +151,14 @@ const SingleCard = ({ card, onAddToCart }) => {
         </div>
         <button 
           className="add-to-cart-btn"
-          onClick={() => onAddToCart(card)}
+          onClick={handleAddToCart}
           disabled={card.stock === 0}
+          style={{
+            background: addedToCart ? '#10b981' : undefined,
+            transition: 'all 0.3s ease'
+          }}
         >
-          {card.stock === 0 ? 'Agotado' : 'Agregar al carrito'}
+          {card.stock === 0 ? 'Agotado' : addedToCart ? <><Check size={16} /> Agregado</> : 'Agregar al carrito'}
         </button>
       </div>
     </div>
@@ -392,10 +407,10 @@ const Catalog = () => {
         ) : cards.length > 0 ? (
           <div className={`single-cards-grid ${viewMode}`}>
             {cards.map(card => (
-              <SingleCard 
+              <ProductCard 
                 key={card.id} 
-                card={card} 
-                onAddToCart={handleAddToCart} 
+                item={card} 
+                type="card"
               />
             ))}
           </div>

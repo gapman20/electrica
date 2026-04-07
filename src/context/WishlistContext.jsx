@@ -8,13 +8,14 @@ export const WishlistProvider = ({ children }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { isLoggedIn, loading: userLoading } = useUser();
+  const { isLoggedIn, loading: userLoading, user } = useUser();
   const isLoggedInRef = useRef(isLoggedIn);
+  const prevUserId = useRef(null);
   
   useEffect(() => {
     isLoggedInRef.current = isLoggedIn;
   }, [isLoggedIn]);
-
+  
   const fetchWishlist = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -55,14 +56,21 @@ export const WishlistProvider = ({ children }) => {
   useEffect(() => {
     if (userLoading) return;
     
+    const currentUserId = user?.id;
+    
+    if (prevUserId.current !== null && prevUserId.current !== currentUserId) {
+      setItems([]);
+    }
+    prevUserId.current = currentUserId;
+    
     const token = localStorage.getItem('token');
-    if (token) {
+    if (token && currentUserId) {
       fetchWishlist();
     } else {
       setItems([]);
       setLoading(false);
     }
-  }, [fetchWishlist, isLoggedIn, userLoading]);
+  }, [user, userLoading, fetchWishlist]);
 
   const addItem = useCallback(async (item) => {
     if (!isLoggedInRef.current) {

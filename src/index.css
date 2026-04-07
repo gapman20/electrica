@@ -1176,6 +1176,11 @@ main {
   color: #000;
 }
 
+.action-btn.added {
+  background: #10b981;
+  color: white;
+}
+
 .product-soldout-overlay {
   position: absolute;
   inset: 0;
@@ -3520,6 +3525,11 @@ main {
   padding: 8px 16px !important;
   font-size: 0.8rem !important;
   gap: 4px !important;
+}
+
+.product-card-btn.added {
+  background: #10b981 !important;
+  color: white !important;
 }
 
 /* Catalog Product Card */

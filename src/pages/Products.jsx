@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, ShoppingCart, Heart, Search, SlidersHorizontal, X, Grid, List } from 'lucide-react';
+import { Package, ShoppingCart, Heart, Search, SlidersHorizontal, X, Grid, List, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { productApi } from '../services/api';
+import ProductCard from '../components/ProductCard';
 
 const GAMES = [
   { id: 'all', name: 'Todos', icon: '🎯', color: '#6366f1' },
@@ -60,6 +61,7 @@ const SealedProductCard = ({ product, onAddToCart }) => {
   const { isInWishlist, toggleItem } = useWishlist();
   const toast = useToast();
   const isLoggedIn = !!localStorage.getItem('tcg_user');
+  const [addedToCart, setAddedToCart] = useState(false);
   
   const hasDiscount = product.discountPercent > 0;
   const badgeClass = product.badge ? product.badge.toLowerCase().replace(/[^a-z]/g, '') : '';
@@ -74,6 +76,15 @@ const SealedProductCard = ({ product, onAddToCart }) => {
     } else {
       toast.info(`${product.name} eliminado de favoritos`);
     }
+  };
+
+  const handleAddToCart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (product.stock === 0) return;
+    onAddToCart(product);
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
   };
   
   return (
@@ -112,8 +123,8 @@ const SealedProductCard = ({ product, onAddToCart }) => {
               <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
             </button>
           )}
-          <button className="action-btn cart-btn" onClick={() => onAddToCart(product)}>
-            <ShoppingCart size={20} />
+          <button className={`action-btn cart-btn ${addedToCart ? 'added' : ''}`} onClick={handleAddToCart}>
+            {addedToCart ? <Check size={20} /> : <ShoppingCart size={20} />}
           </button>
         </div>
         
@@ -135,10 +146,14 @@ const SealedProductCard = ({ product, onAddToCart }) => {
         </div>
         <button 
           className="add-to-cart-btn"
-          onClick={() => onAddToCart(product)}
+          onClick={handleAddToCart}
           disabled={product.stock === 0}
+          style={{
+            background: addedToCart ? '#10b981' : undefined,
+            transition: 'all 0.3s ease'
+          }}
         >
-          {product.stock === 0 ? 'Agotado' : 'Agregar al carrito'}
+          {product.stock === 0 ? 'Agotado' : addedToCart ? <><Check size={16} /> Agregado</> : 'Agregar al carrito'}
         </button>
       </div>
     </div>
@@ -344,10 +359,10 @@ const Products = () => {
         ) : products.length > 0 ? (
           <div className={`catalog-products ${viewMode}`}>
             {products.map(product => (
-              <SealedProductCard 
+              <ProductCard 
                 key={product.id} 
-                product={product} 
-                onAddToCart={handleAddToCart} 
+                item={product} 
+                type="product"
               />
             ))}
           </div>
