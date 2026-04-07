@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { ShoppingCart } from 'lucide-react';
+import { Store, Truck } from 'lucide-react';
 import { getGameValue } from '../services/api';
 import SEO from '../components/SEO';
 
 const Cart = () => {
-  const { items, subtotal, itemCount, updateQuantity, removeItem, clearCart, isLoading } = useCart();
+  const { items, subtotal, shippingCost, total, itemCount, deliveryOption, setDeliveryOption, updateQuantity, removeItem, clearCart, isLoading } = useCart();
   const [showSummary, setShowSummary] = useState(false);
 
   const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
@@ -96,13 +96,31 @@ const Cart = () => {
             <span>Subtotal ({itemCount} items)</span>
             <span>{formatPrice(subtotal)}</span>
           </div>
+          <div className="delivery-options">
+            <label className={`delivery-option ${deliveryOption === 'pickup' ? 'selected' : ''}`} onClick={() => setDeliveryOption('pickup')}>
+              <Store size={18} />
+              <div className="delivery-option-content">
+                <span className="delivery-option-title">Recoger en tienda</span>
+                <span className="delivery-option-desc">Av. Insurgentes 123, Centro</span>
+              </div>
+              <span className="delivery-option-price">Gratis</span>
+            </label>
+            <label className={`delivery-option ${deliveryOption === 'delivery' ? 'selected' : ''}`} onClick={() => setDeliveryOption('delivery')}>
+              <Truck size={18} />
+              <div className="delivery-option-content">
+                <span className="delivery-option-title">Envío a domicilio</span>
+                <span className="delivery-option-desc">Entrega en 2-3 días hábiles</span>
+              </div>
+              <span className="delivery-option-price">$150 MXN</span>
+            </label>
+          </div>
           <div className="summary-row">
             <span>Envío</span>
-            <span className="summary-note">Calculado al checkout</span>
+            <span>{deliveryOption === 'pickup' ? 'Gratis' : formatPrice(150)}</span>
           </div>
           <div className="summary-total">
             <span>Total</span>
-            <span>{formatPrice(subtotal)}</span>
+            <span>{formatPrice(total)}</span>
           </div>
           <Link to="/checkout" className="btn-primary checkout-btn">
             Proceder al Pago

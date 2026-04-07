@@ -24,6 +24,7 @@ export const CartProvider = ({ children }) => {
   const [items, setItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [deliveryOption, setDeliveryOption] = useState('pickup');
   const { user, logout } = useUser();
 
   const loadCart = useCallback(async () => {
@@ -50,6 +51,8 @@ export const CartProvider = ({ children }) => {
 
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const shippingCost = deliveryOption === 'delivery' ? 150 : 0;
+  const total = subtotal + shippingCost;
 
   const addItem = useCallback(async (item) => {
     if (!user) return;
@@ -124,7 +127,11 @@ export const CartProvider = ({ children }) => {
     <CartContext.Provider value={{
       items,
       subtotal,
+      shippingCost,
+      total,
       itemCount,
+      deliveryOption,
+      setDeliveryOption,
       isCartOpen,
       isLoading,
       openCart,

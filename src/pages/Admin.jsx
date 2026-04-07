@@ -247,23 +247,32 @@ const Admin = () => {
   const [selectedGame, setSelectedGame] = useState('magic');
   const lastMessageId = React.useRef(null);
   const lastMessageDate = React.useRef(null);
+  const lastOrderId = React.useRef(null);
+  const lastOrderDate = React.useRef(null);
 
   // Orders state
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState('all');
 
-  // Load orders from API
-  const loadOrders = async () => {
-    setOrdersLoading(true);
+  // Load orders from API (only update if there are changes)
+  const loadOrders = async (showLoading = false) => {
+    if (showLoading) setOrdersLoading(true);
     try {
       const data = await orderApi.getAll();
-      setOrders(data || []);
+      const newOrders = data || [];
+      
+      // Only update if there are actual changes (different length or different IDs)
+      const currentIds = orders.map(o => o.id).sort().join(',');
+      const newIds = newOrders.map(o => o.id).sort().join(',');
+      
+      if (currentIds !== newIds) {
+        setOrders(newOrders);
+      }
     } catch (err) {
       console.error('Error loading orders:', err);
-      toast.error('Error al cargar pedidos');
     } finally {
-      setOrdersLoading(false);
+      if (showLoading) setOrdersLoading(false);
     }
   };
 
@@ -272,7 +281,7 @@ const Admin = () => {
       loadMessages();
     }
     if (active === 'orders') {
-      loadOrders();
+      loadOrders(true);
     }
   }, [active]);
 
@@ -281,7 +290,14 @@ const Admin = () => {
       await loadMessages();
     };
     
-    const interval = setInterval(checkNewMessages, 5000);
+    const checkNewOrders = async () => {
+      await loadOrders();
+    };
+    
+    const interval = setInterval(() => {
+      checkNewMessages();
+      checkNewOrders();
+    }, 5000);
     
     return () => clearInterval(interval);
   }, []);
@@ -303,6 +319,25 @@ const Admin = () => {
       }
     }
   }, [inbox.length]);
+
+  useEffect(() => {
+    if (orders.length > 0) {
+      const latestOrder = orders[0];
+      if (lastOrderId.current === null) {
+        lastOrderId.current = latestOrder.id;
+        lastOrderDate.current = latestOrder.createdAt;
+      } else if (lastOrderId.current !== latestOrder.id) {
+        const currentDate = new Date(latestOrder.createdAt);
+        const previousDate = lastOrderDate.current ? new Date(lastOrderDate.current) : null;
+        if (!previousDate || currentDate > previousDate) {
+          const total = latestOrder.total || latestOrder.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
+          toast.success(`Nuevo pedido #${latestOrder.orderNumber}: $${Number(total).toLocaleString('es-MX')} MXN`);
+        }
+        lastOrderId.current = latestOrder.id;
+        lastOrderDate.current = latestOrder.createdAt;
+      }
+    }
+  }, [orders.length, toast]);
 
   const handleCardSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -2210,7 +2245,7 @@ const Admin = () => {
             try {
               await orderApi.updateStatus(order.id, 'SHIPPED', trackingNumber.trim());
               toast.success('Pedido marcado como enviado');
-              loadOrders();
+              loadOrders(true);
             } catch (err) {
               console.error('Error updating order:', err);
               toast.error('Error al actualizar el pedido');
@@ -2430,7 +2465,9 @@ const Admin = () => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '0.8rem', padding: '0 0.3rem' }}>Secciones</p>
 
         <ul style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-          {sections.map(s => (
+          {sections.map(s => {
+            const pendingCount = s.id === 'orders' ? orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length : 0;
+            return (
             <li key={s.id} onClick={() => setActive(s.id)} style={{
               padding: '9px 12px', borderRadius: '7px',
               background: active === s.id ? 'rgba(245,158,11,0.15)' : 'transparent',
@@ -2445,8 +2482,13 @@ const Admin = () => {
               onMouseLeave={e => { if (active !== s.id) e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
               {s.icon} {s.label}
+              {pendingCount > 0 && (
+                <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>
+                  {pendingCount}
+                </span>
+              )}
             </li>
-          ))}
+          )})}
         </ul>
 
         <div style={{ padding: '0.9rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem' }}>
