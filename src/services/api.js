@@ -172,8 +172,8 @@ export const orderApi = {
     return await apiRequest('/orders', { method: 'POST', body: JSON.stringify(orderData) });
   },
 
-  updateStatus: async (id, status) => {
-    return await apiRequest(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+  updateStatus: async (id, status, trackingNumber) => {
+    return await apiRequest(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, trackingNumber }) });
   },
 
   lookup: async (orderId, email) => {

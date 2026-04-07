@@ -4,7 +4,7 @@ import { useToast } from '../components/Toast';
 import ImageUploader from '../components/ImageUploader';
 import scryfallApi from '../services/scryfallApi';
 import pokemonTcgApi, { formatPokemonCard } from '../services/pokemonTcgApi';
-import api, { getGameValue } from '../services/api';
+import api, { getGameValue, orderApi } from '../services/api';
 import Swal from 'sweetalert2';
 import {
   LayoutDashboard, FileText, Settings, Mail, Info,
@@ -13,7 +13,8 @@ import {
   MessageSquare, Users, TrendingUp, Monitor,
   ToggleLeft, ToggleRight, RefreshCw, Plus, Trash2, Package,
   Columns, ArrowUp, ArrowDown, Bold, List, BarChart, Lock,
-  Gamepad2, Layers, Tag, Calendar, Percent, Search
+  Gamepad2, Layers, Tag, Calendar, Percent, Search,
+  Truck
 } from 'lucide-react';
 
 const showDeleteAlert = (itemType = 'este elemento') => {
@@ -181,6 +182,7 @@ const insertFormat = (path, value, formatType, onChange) => {
 // ─── Sidebar Sections ─────────────────────────────────────────────────────────
 const sections = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} /> },
+  { id: 'orders', label: 'Pedidos', icon: <Package size={17} /> },
   { id: 'inbox', label: 'Bandeja de Entrada', icon: <Mail size={17} /> },
   { id: 'sellados', label: 'Sellados', icon: <Package size={17} /> },
   { id: 'cards', label: 'Cartas Sueltas', icon: <Layers size={17} /> },
@@ -243,9 +245,31 @@ const Admin = () => {
   const lastMessageId = React.useRef(null);
   const lastMessageDate = React.useRef(null);
 
+  // Orders state
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderFilter, setOrderFilter] = useState('all');
+
+  // Load orders from API
+  const loadOrders = async () => {
+    setOrdersLoading(true);
+    try {
+      const data = await orderApi.getAll();
+      setOrders(data || []);
+    } catch (err) {
+      console.error('Error loading orders:', err);
+      toast.error('Error al cargar pedidos');
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (active === 'inbox') {
       loadMessages();
+    }
+    if (active === 'orders') {
+      loadOrders();
     }
   }, [active]);
 
@@ -2153,6 +2177,212 @@ const Admin = () => {
             )}
           </div>
         );
+
+      case 'orders': {
+        const filteredOrders = orderFilter === 'all' 
+          ? orders 
+          : orders.filter(o => o.status === orderFilter);
+        
+        const handleMarkShipped = async (order) => {
+          const { value: trackingNumber } = await Swal.fire({
+            title: 'Marcar como Enviado',
+            text: `Ingresa el número de guía para el pedido #${order.id.slice(-6).toUpperCase()}`,
+            input: 'text',
+            inputPlaceholder: 'Ej: TRACK123456789',
+            background: 'rgba(15, 23, 42, 0.95)',
+            color: '#fff',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Confirmar Envío',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+              if (!value || value.trim() === '') {
+                return 'Debes ingresar un número de guía';
+              }
+            }
+          });
+
+          if (trackingNumber) {
+            try {
+              await orderApi.updateStatus(order.id, 'SHIPPED', trackingNumber.trim());
+              toast.success('Pedido marcado como enviado');
+              loadOrders();
+            } catch (err) {
+              console.error('Error updating order:', err);
+              toast.error('Error al actualizar el pedido');
+            }
+          }
+        };
+
+        const statusColors = {
+          PENDING: { bg: 'rgba(245,158,11,0.2)', color: '#f59e0b' },
+          PROCESSING: { bg: 'rgba(59,130,246,0.2)', color: '#3b82f6' },
+          SHIPPED: { bg: 'rgba(16,185,129,0.2)', color: '#10b981' },
+          DELIVERED: { bg: 'rgba(168,85,247,0.2)', color: '#a855f7' },
+          CANCELLED: { bg: 'rgba(239,68,68,0.2)', color: '#ef4444' },
+        };
+
+        return (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <h3 style={sectionTitle}><Package size={20} color="var(--accent-gold)" /> Gestión de Pedidos</h3>
+              <button onClick={loadOrders} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <RefreshCw size={14} /> Actualizar
+              </button>
+            </div>
+            
+            {ordersLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem' }}>
+                <div style={{ color: 'var(--text-secondary)' }}>Cargando pedidos...</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                  {['all', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map(filter => (
+                    <button key={filter} onClick={() => setOrderFilter(filter)} style={{
+                      padding: '8px 16px',
+                      background: orderFilter === filter ? 'var(--accent-gold)' : 'var(--glass-bg)',
+                      border: '1px solid',
+                      borderColor: orderFilter === filter ? 'var(--accent-gold)' : 'var(--glass-border)',
+                      borderRadius: '8px',
+                      color: orderFilter === filter ? 'white' : 'var(--text-secondary)',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      textTransform: 'capitalize'
+                    }}>
+                      {filter === 'all' ? 'Todos' : filter.toLowerCase()} 
+                      {filter !== 'all' && (
+                        <span style={{ marginLeft: '4px', opacity: 0.7 }}>
+                          ({orders.filter(o => o.status === filter).length})
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {filteredOrders.length === 0 ? (
+                  <div style={{ padding: '3rem', textAlign: 'center', background: 'var(--glass-bg)', border: '1px dashed var(--glass-border)', borderRadius: '12px' }}>
+                    <Package size={48} color="var(--glass-border)" style={{ marginBottom: '1rem' }} />
+                    <p style={{ color: 'var(--text-secondary)' }}>No hay pedidos {orderFilter !== 'all' ? `con estado ${orderFilter.toLowerCase()}` : 'registrados'}</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {filteredOrders.map(order => (
+                      <div key={order.id} style={{ 
+                        padding: '1.5rem', 
+                        background: 'var(--glass-bg)', 
+                        border: '1px solid var(--glass-border)', 
+                        borderRadius: '12px',
+                        borderLeft: `3px solid ${statusColors[order.status]?.color || '#6b7280'}`
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                          <div>
+                            <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: '700', marginBottom: '4px' }}>
+                              Pedido #{order.id.slice(-6).toUpperCase()}
+                            </h4>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Fecha no disponible'}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ 
+                              fontSize: '0.7rem', 
+                              fontWeight: 'bold',
+                              padding: '4px 10px',
+                              borderRadius: '4px',
+                              background: statusColors[order.status]?.bg || 'rgba(107,114,128,0.2)',
+                              color: statusColors[order.status]?.color || '#6b7280',
+                              textTransform: 'uppercase'
+                            }}>
+                              {order.status}
+                            </span>
+                            {order.status === 'PENDING' || order.status === 'PROCESSING' ? (
+                              <button 
+                                onClick={() => handleMarkShipped(order)}
+                                style={{ 
+                                  padding: '6px 12px', 
+                                  background: 'rgba(16,185,129,0.1)', 
+                                  border: '1px solid rgba(16,185,129,0.3)', 
+                                  borderRadius: '6px', 
+                                  color: '#10b981', 
+                                  cursor: 'pointer', 
+                                  fontSize: '0.75rem', 
+                                  fontWeight: '600',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <Truck size={12} /> Marcar Enviado
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                          <div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '2px' }}>Cliente</p>
+                            <p style={{ fontSize: '0.85rem', fontWeight: '500' }}>{order.customerName || 'N/A'}</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{order.customerEmail || order.email || 'N/A'}</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{order.customerPhone || order.phone || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '2px' }}>Dirección</p>
+                            <p style={{ fontSize: '0.85rem' }}>{order.shippingAddress?.street || 'N/A'}</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {order.shippingAddress?.city || ''}{order.shippingAddress?.state ? `, ${order.shippingAddress.state}` : ''} {order.shippingAddress?.zip || ''}
+                            </p>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '2px' }}>Total</p>
+                            <p style={{ fontSize: '1.1rem', fontWeight: '700', color: '#10b981' }}>
+                              ${order.total ? order.total.toLocaleString('es-MX') : '0.00'}
+                            </p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              {order.items?.length || 0} producto(s)
+                            </p>
+                          </div>
+                        </div>
+
+                        {order.trackingNumber && (
+                          <div style={{ 
+                            padding: '0.75rem 1rem', 
+                            background: 'rgba(16,185,129,0.1)', 
+                            border: '1px solid rgba(16,185,129,0.2)', 
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <Truck size={14} color="#10b981" />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Número de Guía:</span>
+                            <code style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '600' }}>{order.trackingNumber}</code>
+                          </div>
+                        )}
+
+                        {order.items && order.items.length > 0 && (
+                          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Productos:</p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              {order.items.map((item, idx) => (
+                                <div key={idx} style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                  {item.quantity}x {item.name} — ${item.price?.toLocaleString('es-MX')}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      }
 
       default: return null;
     }

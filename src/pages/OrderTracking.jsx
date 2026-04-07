@@ -218,7 +218,22 @@ const OrderTracking = () => {
             </div>
           )}
 
-          {lookupResult.shippingAddress && (
+          {lookupResult.trackingNumber && (
+            <div className="tracking-info" style={{ 
+              marginTop: '1.5rem', 
+              padding: '1rem', 
+              background: 'rgba(6, 182, 212, 0.1)', 
+              border: '1px solid rgba(6, 182, 212, 0.3)', 
+              borderRadius: '8px' 
+            }}>
+              <h4 style={{ color: '#06b6d4', marginBottom: '0.5rem' }}>Número de Rastreo</h4>
+              <p style={{ fontFamily: 'monospace', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                {lookupResult.trackingNumber}
+              </p>
+            </div>
+          )}
+
+          {(lookupResult.shippingAddress || lookupResult.address) && (
             <div className="shipping-info">
               <h4>Dirección de Envío</h4>
               <p>
