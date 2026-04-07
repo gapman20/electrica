@@ -103,11 +103,11 @@ const ProductCard = ({ card }) => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {hasDiscount && (
               <span style={{ fontSize: '0.75rem', color: '#ef4444', textDecoration: 'line-through' }}>
-                ${typeof card.price === 'number' ? (card.price).toLocaleString('es-MX') : card.price}
+                ${typeof card.price === 'number' ? (card.price).toLocaleString('es-MX') : card.price} MXN
               </span>
             )}
             <span className="product-card-price">
-              ${typeof displayPrice === 'number' ? displayPrice.toLocaleString('es-MX') : displayPrice}
+              ${typeof displayPrice === 'number' ? displayPrice.toLocaleString('es-MX') : displayPrice} MXN
             </span>
           </div>
           {isOutOfStock ? (

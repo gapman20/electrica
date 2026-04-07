@@ -28,7 +28,7 @@ const RARITY_COLORS = {
   'alternate-art': '#06b6d4'
 };
 
-const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
+const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
 const ProductDetail = () => {
   const { id } = useParams();

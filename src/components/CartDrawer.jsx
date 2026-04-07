@@ -7,7 +7,7 @@ import { getGameValue } from '../services/api';
 const CartDrawer = () => {
   const { items, subtotal, itemCount, isCartOpen, closeCart, updateQuantity, removeItem, isLoading } = useCart();
 
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
+  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
   if (!isCartOpen) return null;
 

@@ -9,7 +9,7 @@ const Cart = () => {
   const { items, subtotal, itemCount, updateQuantity, removeItem, clearCart, isLoading } = useCart();
   const [showSummary, setShowSummary] = useState(false);
 
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
+  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
   if (isLoading) {
     return (

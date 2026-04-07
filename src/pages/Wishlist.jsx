@@ -18,7 +18,7 @@ const GAMES = {
   lorcana: { name: 'Lorcana', icon: '✨', color: '#ec4899' }
 };
 
-const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
+const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
 const Wishlist = () => {
   const { items, removeItem, clearWishlist, loading } = useWishlist();

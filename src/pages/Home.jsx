@@ -12,10 +12,10 @@ import SEO from '../components/SEO';
 import { getGameValue, productApi, cardApi } from '../services/api';
 
 const formatPrice = (value) => {
-  if (typeof value === 'number') {
-    return `$${value.toLocaleString('es-MX')}`;
-  }
-  return value;
+  if (!value) return '';
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (isNaN(num)) return value;
+  return `$${num.toLocaleString('es-MX')} MXN`;
 };
 
 const GameCard = ({ name, icon, color }) => (
@@ -105,9 +105,9 @@ const ProductCard = ({ product, onAddToCart }) => {
         </div>
         <h3 className="product-name">{product.name}</h3>
         <div className="product-price">
-          <span className="price-current">{product.price}</span>
+          <span className="price-current">{formatPrice(product.price)}</span>
           {hasDiscount && (
-            <span className="price-original">{product.originalPrice}</span>
+            <span className="price-original">{formatPrice(product.originalPrice)}</span>
           )}
         </div>
         <button 

@@ -79,7 +79,7 @@ const Checkout = () => {
     setFormData({ name: '', email: '', street: '', city: '', state: '', zip: '', country: 'MX' });
   };
 
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
+  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
   const validateForm = () => {
     const newErrors = {};

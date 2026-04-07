@@ -8,10 +8,10 @@ import SEO from '../components/SEO';
 import { cardApi, gameApi } from '../services/api';
 
 const formatPrice = (price) => {
-  if (typeof price === 'number') {
-    return `$${price.toLocaleString('es-MX')}`;
-  }
-  return price || '';
+  if (!price) return '';
+  const num = typeof price === 'number' ? price : parseFloat(price);
+  if (isNaN(num)) return price || '';
+  return `$${num.toLocaleString('es-MX')} MXN`;
 };
 
 const normalizeCard = (card) => ({

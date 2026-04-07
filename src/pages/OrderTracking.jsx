@@ -51,7 +51,7 @@ const OrderTracking = () => {
     await lookupOrder(formData.orderId.trim(), formData.email.trim());
   };
 
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
+  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);

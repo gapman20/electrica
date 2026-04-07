@@ -19,7 +19,7 @@ const OrderConfirmation = () => {
     loadOrder();
   }, [orderId, currentOrder, fetchOrderById]);
 
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
+  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
   if (loading || !order) {
     return (
