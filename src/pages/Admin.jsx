@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSite } from '../context/SiteContext';
 import { useToast } from '../components/Toast';
 import ImageUploader from '../components/ImageUploader';
@@ -213,11 +214,13 @@ const Admin = () => {
     campaigns = [], createCampaign, updateCampaign, deleteCampaign,
     saveContent, resetContent, saveStatus,
   } = useSite();
+  const navigate = useNavigate();
   const toast = useToast();
 
   const [active, setActive] = useState('dashboard');
   const [editPost, setEditPost] = useState(null);
   const [splitView, setSplitView] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   // Cards state for TCG card management
   const [cards, setCards] = useState([]);
@@ -2388,6 +2391,29 @@ const Admin = () => {
     }
   };
 
+  if (isLoggingOut) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          border: '4px solid var(--bg-tertiary)',
+          borderTop: '4px solid var(--accent-gold)',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Cerrando sesión...</p>
+      </div>
+    );
+  }
+
   return (
     <>
     <div style={{ display: 'flex', minHeight: 'calc(100vh - var(--nav-height))', background: 'var(--bg-primary)' }}>
@@ -2431,7 +2457,13 @@ const Admin = () => {
               <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Conectado</p>
             </div>
           </div>
-          <button onClick={logout} title="Cerrar Sesión" style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+          <button onClick={() => {
+            setIsLoggingOut(true);
+            setTimeout(() => {
+              logout();
+              navigate('/login', { replace: true });
+            }, 100);
+          }} title="Cerrar Sesión" style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
              Salir
           </button>
         </div>

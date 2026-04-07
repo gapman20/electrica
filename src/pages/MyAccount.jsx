@@ -8,6 +8,7 @@ import SEO from '../components/SEO';
 
 const MyAccount = () => {
   const { user, updateUser, logout } = useUser();
+  const navigate = useNavigate();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [formData, setFormData] = useState({
     name: '',
@@ -23,6 +24,7 @@ const MyAccount = () => {
   });
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -105,10 +107,38 @@ const MyAccount = () => {
     });
 
     if (result.isConfirmed) {
-      await authApi.logout();
-      logout();
+      setIsLoggingOut(true);
+      setTimeout(async () => {
+        await authApi.logout();
+        logout();
+        navigate('/login', { replace: true });
+      }, 100);
     }
   };
+
+  if (isLoggingOut) {
+    return (
+      <div className="page" style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          border: '4px solid var(--bg-tertiary)',
+          borderTop: '4px solid var(--accent-gold)',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Cerrando sesión...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
