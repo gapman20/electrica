@@ -1,32 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useOrder } from '../context/OrderContext';
 import { useUser } from '../context/UserContext';
 import CheckoutForm from '../components/CheckoutForm';
 import PayPalButton from '../components/PayPalButton';
-import { User, LogOut, Mail, Lock } from 'lucide-react';
-
-const inputSt = {
-  width: '100%', padding: '12px 14px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid var(--glass-border)',
-  borderRadius: '8px', color: 'var(--text-primary)',
-  fontFamily: 'var(--font-body)', fontSize: '0.95rem',
-  outline: 'none', resize: 'vertical',
-  transition: 'border-color 0.2s, box-shadow 0.2s',
-};
-
-const focus = e => { e.target.style.borderColor = 'var(--accent-gold)'; e.target.style.boxShadow = '0 0 0 3px rgba(212, 175, 55, 0.15)'; };
-const blur = e => { e.target.style.borderColor = 'var(--glass-border)'; e.target.style.boxShadow = 'none'; };
+import { User, LogOut, Mail, Lock, ShoppingCart, Truck, CreditCard, Check, Store, ArrowLeft } from 'lucide-react';
+import { isPayPalConfigured } from '../services/paypalService';
+import api from '../services/api';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal, shippingCost, total, clearCart } = useCart();
   const { createOrder, loading } = useOrder();
-  const { user, isLoggedIn, login: userLogin, logout: userLogout } = useUser();
+  const { user, isLoggedIn, login: userLogin, logout: userLogout, updateUser } = useUser();
   
-  const [checkoutMode, setCheckoutMode] = useState('select');
+  const paypalIsConfigured = useMemo(() => isPayPalConfigured(), []);
+  
+  const [checkoutStep, setCheckoutStep] = useState(1); // 1 = login/select, 2 = shipping, 3 = payment
+  const [deliveryOption, setDeliveryOption] = useState('pickup');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -43,15 +35,18 @@ const Checkout = () => {
   const [errors, setErrors] = useState({});
   const [paymentError, setPaymentError] = useState(null);
   const [paymentCancelled, setPaymentCancelled] = useState(false);
-  const [showOrderSummary, setShowOrderSummary] = useState(false);
 
   React.useEffect(() => {
     if (isLoggedIn && user) {
-      setCheckoutMode('form');
+      setCheckoutStep(2);
       setFormData(prev => ({
         ...prev,
         name: user.name || user.email?.split('@')[0] || '',
         email: user.email || '',
+        street: user.address || '',
+        city: user.city || '',
+        state: user.state || '',
+        zip: user.zipCode || '',
       }));
     }
   }, [isLoggedIn, user]);
@@ -62,7 +57,7 @@ const Checkout = () => {
     setLoginLoading(true);
     const result = await userLogin(loginData.email, loginData.password);
     if (result.success) {
-      setCheckoutMode('form');
+      setCheckoutStep(2);
     } else {
       setLoginError(result.error || 'Credenciales incorrectas');
     }
@@ -70,12 +65,12 @@ const Checkout = () => {
   };
 
   const handleGuestCheckout = () => {
-    setCheckoutMode('form');
+    setCheckoutStep(2);
   };
 
   const handleLogout = () => {
     userLogout();
-    setCheckoutMode('select');
+    setCheckoutStep(1);
     setFormData({ name: '', email: '', street: '', city: '', state: '', zip: '', country: 'MX' });
   };
 
@@ -83,13 +78,16 @@ const Checkout = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = 'Nombre requerido';
-    if (!formData.email.trim()) newErrors.email = 'Email requerido';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email inválido';
-    if (!formData.street.trim()) newErrors.street = 'Dirección requerida';
-    if (!formData.city.trim()) newErrors.city = 'Ciudad requerida';
-    if (!formData.state.trim()) newErrors.state = 'Estado requerido';
-    if (!formData.zip.trim()) newErrors.zip = 'Código postal requerido';
+    const safeStr = (val) => (val != null ? String(val).trim() : '');
+    
+    if (!safeStr(formData.name)) newErrors.name = 'Nombre requerido';
+    if (!safeStr(formData.email)) newErrors.email = 'Email requerido';
+    else if (!/\S+@\S+\.\S+/.test(safeStr(formData.email))) newErrors.email = 'Email inválido';
+    if (!safeStr(formData.street)) newErrors.street = 'Dirección requerida';
+    if (!safeStr(formData.city)) newErrors.city = 'Ciudad requerida';
+    if (!safeStr(formData.state)) newErrors.state = 'Estado requerido';
+    if (!safeStr(formData.zip)) newErrors.zip = 'Código postal requerido';
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -153,9 +151,109 @@ const Checkout = () => {
     setPaymentError(null);
   };
 
+  const handleProceedToPayment = async () => {
+    const isFormValid = validateForm();
+    
+    if (!isFormValid) {
+      alert('Tienes errores en el formulario, revisa los campos en la sección izquierda DENTRO de "Editar".');
+      setCheckoutStep(2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Avanzamos inmediatamente en la UI para que se sienta fluido
+    setCheckoutStep(3);
+
+    if (isLoggedIn) {
+      try {
+        await api.auth.updateProfile({
+          name: formData.name,
+          address: formData.street,
+          city: formData.city,
+          state: formData.state,
+          zipCode: formData.zip
+        });
+        updateUser({
+          ...user,
+          name: formData.name,
+          address: formData.street,
+          city: formData.city,
+          state: formData.state,
+          zipCode: formData.zip
+        });
+      } catch (error) {
+        console.error('Error saving address to backend:', error);
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+    if (e && e.preventDefault) e.preventDefault();
+    
+    if (!validateForm()) {
+      setCheckoutStep(2);
+      return;
+    }
+
+    if (isLoggedIn) {
+      try {
+        await api.auth.updateProfile({
+          name: formData.name,
+          address: formData.street,
+          city: formData.city,
+          state: formData.state,
+          zipCode: formData.zip
+        });
+        updateUser({
+          ...user,
+          name: formData.name,
+          address: formData.street,
+          city: formData.city,
+          state: formData.state,
+          zipCode: formData.zip
+        });
+      } catch (error) {
+        console.error('Error saving address to backend:', error);
+      }
+    }
+
+    // Si tiene paypal, esto solo es para avanzar de paso desde el form
+    if (paypalIsConfigured) {
+      setCheckoutStep(3);
+      return;
+    }
+
+    // Si no tiene paypal, completar el pedido manualmente.
+    try {
+      const order = await createOrder({
+        email: formData.email.toLowerCase(),
+        items: items.map(item => ({
+          cardId: item.itemType === 'CARD' ? item.itemId : null,
+          productId: item.itemType === 'PRODUCT' ? item.itemId : null,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          imageUrl: item.imageUrl,
+        })),
+        subtotal,
+        total: subtotal + (deliveryOption === 'delivery' ? 150 : 0),
+        shippingAddress: {
+          name: formData.name,
+          street: formData.street,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip,
+          country: formData.country,
+        },
+        status: 'PENDING',
+        notes: `Método de entrega: ${deliveryOption === 'pickup' ? 'Recoger en tienda' : 'Envío a domicilio'}`,
+      });
+      clearCart();
+      navigate(`/pedido/${order.id}/confirmacion`);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      setPaymentError('Error al procesar tu pedido. Por favor intenta de nuevo.');
+    }
   };
 
   if (items.length === 0) {
@@ -174,7 +272,36 @@ const Checkout = () => {
 
   return (
     <div className="page checkout-page" style={{ paddingBottom: '12rem' }}>
+      <Link to="/carrito" className="back-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', marginBottom: '1rem', textDecoration: 'none' }}>
+        <ArrowLeft size={18} />
+        Volver al carrito
+      </Link>
+      
       <h1 className="h2-premium">Checkout</h1>
+      
+      {/* Progress Steps */}
+      <div className="checkout-progress">
+        <div className={`progress-step ${checkoutStep >= 1 ? 'active' : ''} ${checkoutStep > 1 ? 'completed' : ''}`}>
+          <div className="progress-step-icon">
+            {checkoutStep > 1 ? <Check size={16} /> : <User size={16} />}
+          </div>
+          <span className="progress-step-label">Cuenta</span>
+        </div>
+        <div className="progress-step-line"></div>
+        <div className={`progress-step ${checkoutStep >= 2 ? 'active' : ''} ${checkoutStep > 2 ? 'completed' : ''}`}>
+          <div className="progress-step-icon">
+            {checkoutStep > 2 ? <Check size={16} /> : <Truck size={16} />}
+          </div>
+          <span className="progress-step-label">Envío</span>
+        </div>
+        <div className="progress-step-line"></div>
+        <div className={`progress-step ${checkoutStep >= 3 ? 'active' : ''}`}>
+          <div className="progress-step-icon">
+            <CreditCard size={16} />
+          </div>
+          <span className="progress-step-label">Pago</span>
+        </div>
+      </div>
       
       {paymentCancelled && (
         <div className="alert alert-warning">
@@ -189,7 +316,7 @@ const Checkout = () => {
       
       <div className="checkout-layout">
         <div className="checkout-form-section">
-          {checkoutMode === 'select' && !isLoggedIn && (
+          {checkoutStep === 1 && !isLoggedIn && (
             <div className="checkout-auth-section">
               <div className="glass-card login-section" style={{ padding: '2.5rem', marginBottom: '1.5rem' }}>
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -212,9 +339,7 @@ const Checkout = () => {
                         placeholder="tu@email.com"
                         value={loginData.email}
                         onChange={(e) => { setLoginData(prev => ({ ...prev, email: e.target.value })); setLoginError(''); }}
-                        style={{ ...inputSt, paddingLeft: '42px' }}
-                        onFocus={focus}
-                        onBlur={blur}
+                        style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-primary)', fontFamily: 'var(--font-body)', fontSize: '0.95rem', outline: 'none', resize: 'vertical', transition: 'border-color 0.2s, box-shadow 0.2s', paddingLeft: '42px' }}
                         required
                       />
                     </div>
@@ -230,9 +355,7 @@ const Checkout = () => {
                         placeholder="••••••••"
                         value={loginData.password}
                         onChange={(e) => { setLoginData(prev => ({ ...prev, password: e.target.value })); setLoginError(''); }}
-                        style={{ ...inputSt, paddingLeft: '42px' }}
-                        onFocus={focus}
-                        onBlur={blur}
+                        style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-primary)', fontFamily: 'var(--font-body)', fontSize: '0.95rem', outline: 'none', resize: 'vertical', transition: 'border-color 0.2s, box-shadow 0.2s', paddingLeft: '42px' }}
                         required
                       />
                     </div>
@@ -256,7 +379,7 @@ const Checkout = () => {
             </div>
           )}
 
-          {checkoutMode === 'select' && isLoggedIn && (
+          {checkoutStep === 1 && isLoggedIn && (
             <div className="glass-card" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, var(--accent-gold), #b8941f)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -274,14 +397,41 @@ const Checkout = () => {
             </div>
           )}
 
-          {checkoutMode === 'form' && (
-            <CheckoutForm 
-              formData={formData} 
-              errors={errors} 
-              onChange={handleChange} 
-              onSubmit={handleSubmit} 
-              loading={loading}
-            />
+          {checkoutStep >= 2 && (
+            <div className="checkout-delivery-section">
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Truck size={20} color="var(--accent-gold)" />
+                Método de entrega
+              </h3>
+              <div className="delivery-options">
+                <label className={`delivery-option ${deliveryOption === 'pickup' ? 'selected' : ''}`} onClick={() => setDeliveryOption('pickup')}>
+                  <Store size={18} />
+                  <div className="delivery-option-content">
+                    <span className="delivery-option-title">Recoger en tienda</span>
+                    <span className="delivery-option-desc">Av. Insurgentes 123, Centro</span>
+                  </div>
+                  <span className="delivery-option-price">Gratis</span>
+                </label>
+                <label className={`delivery-option ${deliveryOption === 'delivery' ? 'selected' : ''}`} onClick={() => setDeliveryOption('delivery')}>
+                  <Truck size={18} />
+                  <div className="delivery-option-content">
+                    <span className="delivery-option-title">Envío a domicilio</span>
+                    <span className="delivery-option-desc">Entrega en 2-3 días hábiles</span>
+                  </div>
+                  <span className="delivery-option-price">$150 MXN</span>
+                </label>
+              </div>
+              
+              <CheckoutForm 
+                formData={formData} 
+                errors={errors} 
+                onChange={handleChange} 
+                onSubmit={handleSubmit} 
+                loading={loading}
+                paypalIsConfigured={paypalIsConfigured}
+                onProceedToPayment={() => setCheckoutStep(3)}
+              />
+            </div>
           )}
         </div>
         
@@ -300,54 +450,59 @@ const Checkout = () => {
           </div>
           <div className="checkout-totals">
             <div className="checkout-total-row">
+              <span>Subtotal</span>
+              <span>{formatPrice(subtotal)}</span>
+            </div>
+            <div className="checkout-total-row">
+              <span>Envío</span>
+              <span>{deliveryOption === 'pickup' ? 'Gratis' : '$150 MXN'}</span>
+            </div>
+            <div className="checkout-total-row checkout-total-final">
               <span>Total</span>
-              <span className="checkout-total-value">{formatPrice(subtotal)}</span>
+              <span className="checkout-total-value">{formatPrice(subtotal + (deliveryOption === 'delivery' ? 150 : 0))}</span>
             </div>
           </div>
           <div className="checkout-payment-section">
-            <p className="checkout-payment-note">Paga de forma segura con PayPal</p>
-            <PayPalButton
-              cartItems={items}
-              subtotal={subtotal}
-              onSuccess={handlePayPalSuccess}
-              onError={handlePayPalError}
-              onCancel={handlePayPalCancel}
-              disabled={loading}
-            />
+            {checkoutStep < 3 ? (
+              <>
+                <p className="checkout-payment-note">Verifica tu información para proceder al pago</p>
+                <button 
+                  onClick={handleProceedToPayment} 
+                  disabled={loading}
+                  className="btn-primary"
+                  style={{ width: '100%', padding: '14px', fontSize: '1rem', fontWeight: '700' }}
+                >
+                  Proceder al Pago
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="checkout-payment-note">
+                  {paypalIsConfigured ? 'Paga de forma segura con PayPal' : 'Completa tu compra'}
+                </p>
+                {paypalIsConfigured ? (
+                  <PayPalButton
+                    cartItems={items}
+                    subtotal={subtotal}
+                    onSuccess={handlePayPalSuccess}
+                    onError={handlePayPalError}
+                    onCancel={handlePayPalCancel}
+                    disabled={loading}
+                  />
+                ) : (
+                  <button 
+                    onClick={handleSubmit} 
+                    disabled={loading}
+                    className="btn-primary"
+                    style={{ width: '100%', padding: '14px', fontSize: '1rem', fontWeight: '700' }}
+                  >
+                    {loading ? 'Procesando...' : `Pagar ${formatPrice(subtotal + (deliveryOption === 'delivery' ? 150 : 0))}`}
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
-      </div>
-
-      {/* Mobile Summary */}
-      <div className="checkout-summary-mobile">
-        <div className="checkout-summary-collapsed" onClick={() => setShowOrderSummary(!showOrderSummary)}>
-          <div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-              {items.length} items
-            </p>
-            <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-gold)' }}>{formatPrice(subtotal)}</p>
-          </div>
-          <button className="btn-primary checkout-pay-button" style={{ marginTop: 0, width: 'auto', padding: '12px 24px' }}>
-            Pagar Ahora
-          </button>
-        </div>
-        
-        {showOrderSummary && (
-          <div className="checkout-summary-expanded">
-            <div className="checkout-items-mobile">
-              {items.map(item => (
-                <div key={item.cartId} className="checkout-item-mobile">
-                  <span>{item.name} x{item.quantity}</span>
-                  <span>{formatPrice(item.price * item.quantity)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="checkout-total-mobile">
-              <span>Total</span>
-              <span>{formatPrice(subtotal)}</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

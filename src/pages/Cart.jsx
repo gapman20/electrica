@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { Store, Truck } from 'lucide-react';
+import { Store, Truck, ShoppingBag, ArrowRight, Trash2 } from 'lucide-react';
 import { getGameValue } from '../services/api';
 import SEO from '../components/SEO';
 
 const Cart = () => {
   const { items, subtotal, shippingCost, total, itemCount, deliveryOption, setDeliveryOption, updateQuantity, removeItem, clearCart, isLoading } = useCart();
-  const [showSummary, setShowSummary] = useState(false);
 
   const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
@@ -46,46 +45,84 @@ const Cart = () => {
     <>
       <SEO title="Carrito de Compras" description="Revisa los productos en tu carrito antes de proceder al pago." />
       <div className="page cart-page" style={{ paddingBottom: '12rem' }}>
-      <h1 className="h2-premium">Tu Carrito ({itemCount} items)</h1>
+      
+      {/* Cart Header with Progress */}
+      <div className="cart-header">
+        <div className="cart-header-icon">
+          <ShoppingBag size={24} />
+        </div>
+        <div className="cart-header-text">
+          <h1 className="h2-premium">Tu Carrito</h1>
+          <p className="cart-header-subtitle">{itemCount} {itemCount === 1 ? 'producto' : 'productos'} en tu carrito</p>
+        </div>
+      </div>
+      
+      {/* Progress Steps */}
+      <div className="cart-progress">
+        <div className="cart-progress-step active">
+          <span className="cart-progress-number">1</span>
+          <span className="cart-progress-label">Carrito</span>
+        </div>
+        <div className="cart-progress-line"></div>
+        <div className="cart-progress-step">
+          <span className="cart-progress-number">2</span>
+          <span className="cart-progress-label">Checkout</span>
+        </div>
+        <div className="cart-progress-line"></div>
+        <div className="cart-progress-step">
+          <span className="cart-progress-number">3</span>
+          <span className="cart-progress-label">Confirmación</span>
+        </div>
+      </div>
       
       <div className="cart-page-layout">
         <div className="cart-items">
           {items.map(item => (
             <div key={item.cartId} className="cart-item-card glass-card">
-              {item.imageUrl && (
-                <div className="cart-item-image">
-                  <img src={item.imageUrl} alt={item.name} />
+              <div className="cart-item-main">
+                {item.imageUrl && (
+                  <div className="cart-item-image">
+                    <img src={item.imageUrl} alt={item.name} />
+                  </div>
+                )}
+                <div className="cart-item-details">
+                  <h3 className="cart-item-name">{item.name}</h3>
+                  <div className="cart-item-badges">
+                    <span className="cart-item-game">{getGameValue(item.game)}</span>
+                    {item.rarity && <span className="cart-item-rarity">{item.rarity}</span>}
+                  </div>
+                  <p className="cart-item-price">{formatPrice(item.price)} c/u</p>
                 </div>
-              )}
-              <div className="cart-item-details">
-                <h3>{item.name}</h3>
-                <p className="cart-item-meta">
-                  {getGameValue(item.game)} {item.rarity && `- ${item.rarity}`}
-                </p>
-                <p className="cart-item-price">{formatPrice(item.price)}</p>
               </div>
+              
               <div className="cart-item-actions">
-                <div className="quantity-controls-inline">
+                <div className="quantity-controls">
                   <button 
                     onClick={() => updateQuantity(item.cartId, item.quantity - 1)}
                     disabled={item.quantity <= 1}
-                    style={{ opacity: item.quantity <= 1 ? 0.4 : 1 }}
+                    className="quantity-btn"
                   >−</button>
                   <span className="quantity-number">{item.quantity}</span>
                   <button 
                     onClick={() => updateQuantity(item.cartId, item.quantity + 1)}
                     disabled={item.quantity >= item.stock}
-                    style={{ opacity: item.quantity >= item.stock ? 0.4 : 1 }}
+                    className="quantity-btn"
                   >+</button>
                 </div>
+                
                 <button onClick={() => removeItem(item.cartId)} className="remove-btn">
-                  Eliminar
+                  <Trash2 size={16} />
                 </button>
-                <p className="cart-item-total">{formatPrice(item.price * item.quantity)}</p>
+              </div>
+              
+              <div className="cart-item-subtotal">
+                <span className="cart-item-subtotal-label">Subtotal</span>
+                <span className="cart-item-subtotal-value">{formatPrice(item.price * item.quantity)}</span>
               </div>
             </div>
           ))}
           <button onClick={clearCart} className="clear-cart-btn">
+            <Trash2 size={18} />
             Vaciar carrito
           </button>
         </div>
@@ -120,23 +157,14 @@ const Cart = () => {
           </div>
           <div className="summary-total">
             <span>Total</span>
-            <span>{formatPrice(total)}</span>
+            <span className="summary-total-value">{formatPrice(total)}</span>
           </div>
           <Link to="/checkout" className="btn-primary checkout-btn">
             Proceder al Pago
+            <ArrowRight size={18} />
           </Link>
-        </div>
-      </div>
-
-      {/* Mobile Summary */}
-      <div className="cart-summary-sticky">
-        <div className="checkout-summary-collapsed" onClick={() => setShowSummary(!showSummary)}>
-          <div>
-            <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Total ({itemCount} items)</p>
-            <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-gold)' }}>{formatPrice(subtotal)}</p>
-          </div>
-          <Link to="/checkout" className="btn-primary" style={{ padding: '12px 24px' }}>
-            Pagar
+          <Link to="/catalogo" className="continue-shopping-link">
+            ← Continuar comprando
           </Link>
         </div>
       </div>

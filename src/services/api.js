@@ -249,6 +249,20 @@ export const authApi = {
     const user = localStorage.getItem('tcg_user');
     return user ? JSON.parse(user) : null;
   },
+
+  updateProfile: async (profileData) => {
+    try {
+      const data = await apiRequest('/users/profile', { method: 'PUT', body: JSON.stringify(profileData) });
+      if (data.id) {
+        localStorage.setItem('tcg_user', JSON.stringify(data));
+        return { success: true, user: data };
+      }
+      return { success: false, error: data.error };
+    } catch (error) {
+      console.error('Update profile error:', error);
+      return { success: false, error: error.message };
+    }
+  },
 };
 
 // ─── Wishlist API ──────────────────────────────────────────────────────────────

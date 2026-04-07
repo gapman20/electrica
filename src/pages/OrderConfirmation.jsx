@@ -59,7 +59,11 @@ const OrderConfirmation = () => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Estado</span>
-              <span className="order-status-badge paid">Pagado</span>
+              {order.status === 'COMPLETED' || order.status === 'PAID' ? (
+                <span className="order-status-badge paid">Pagado</span>
+              ) : (
+                <span className="order-status-badge pending" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>Pendiente de Pago</span>
+              )}
             </div>
           </div>
         </div>
