@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Phone, MapPin, Save, ArrowLeft } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { authApi } from '../services/api';

@@ -6,7 +6,6 @@ import { useUser } from '../context/UserContext';
 import { Lock, Mail, ArrowLeft, User } from 'lucide-react';
 import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
-import PageLoader from '../components/PageLoader';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -15,7 +14,7 @@ const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [redirecting, setRedirecting] = useState(false);
+  const [loginPhase, setLoginPhase] = useState('idle'); // 'idle' | 'checking-admin' | 'checking-user' | 'success'
 
   useEffect(() => {
     const initGoogle = () => {
@@ -35,8 +34,7 @@ const Login = () => {
                   localStorage.setItem('token', data.token);
                   localStorage.setItem('tcg_user', JSON.stringify(data.user));
                   setUser(data.user);
-                  setRedirecting(true);
-                  setTimeout(() => navigate('/'), 300);
+                  navigate('/');
                 } else {
                   Swal.fire({
                     icon: 'error',
@@ -87,34 +85,33 @@ const Login = () => {
     setLoading(true);
     setError('');
 
+    setLoginPhase('checking-admin');
     const adminSuccess = await adminLogin(formData.email, formData.password);
     
     if (adminSuccess) {
-      setLoading(false);
-      setRedirecting(true);
-      setTimeout(() => navigate('/admin'), 300);
-    } else {
-      const userSuccess = await userLogin(formData.email, formData.password);
-      
-      if (userSuccess) {
-        setLoading(false);
-        setRedirecting(true);
-        setTimeout(() => navigate('/'), 300);
-      } else {
-        setError('Credenciales incorrectas');
-        setLoading(false);
-      }
+      setLoginPhase('success');
+      navigate('/admin');
+      return;
     }
+
+    setLoginPhase('checking-user');
+    const userSuccess = await userLogin(formData.email, formData.password);
+    
+    if (userSuccess) {
+      setLoginPhase('success');
+      navigate('/');
+      return;
+    }
+
+    setLoginPhase('idle');
+    setError('Credenciales incorrectas');
+    setLoading(false);
   };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
   };
-
-  if (redirecting) {
-    return <PageLoader />;
-  }
 
   return (
     <>
@@ -171,7 +168,12 @@ const Login = () => {
           )}
           
           <button type="submit" disabled={loading} className="btn-primary" style={{ marginTop: '0.5rem', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}>
-            {loading ? 'Verificando...' : 'Iniciar Sesión'}
+            {loading 
+              ? loginPhase === 'checking-admin' ? 'Verificando como admin...' 
+              : loginPhase === 'checking-user' ? 'Verificando como usuario...'
+              : 'Verificando...'
+              : 'Iniciar Sesión'
+            }
           </button>
         </form>
 
