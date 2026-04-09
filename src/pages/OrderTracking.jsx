@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useOrder } from '../context/OrderContext';
 import { useUser } from '../context/UserContext';
 import { orderApi } from '../services/api';
-import { Package, Search } from 'lucide-react';
+import { Package, Search, ArrowLeft } from 'lucide-react';
 
 const OrderTracking = () => {
   const { orderId } = useParams();
@@ -12,12 +12,63 @@ const OrderTracking = () => {
   const [formData, setFormData] = useState({ orderId: orderId || '', email: user?.email || '' });
   const [searchAttempted, setSearchAttempted] = useState(false);
   const [userOrders, setUserOrders] = useState([]);
+  const [orderDetail, setOrderDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [listLoading, setListLoading] = useState(false);
+
+  const showOrderList = !selectedOrderId && !orderDetail;
+  const order = orderDetail || lookupResult;
 
   useEffect(() => {
     if (orderId) {
-      handleLookup();
+      loadOrderDetail();
     }
   }, [orderId]);
+
+  const loadOrderDetail = async () => {
+    if (!orderId) return;
+    setDetailLoading(true);
+    try {
+      const order = await orderApi.getById(orderId);
+      setOrderDetail(order);
+    } catch (err) {
+      console.error('Error loading order:', err);
+    }
+    setDetailLoading(false);
+  };
+
+  const handleViewOrder = async (id) => {
+    setSelectedOrderId(id);
+    setDetailLoading(true);
+    setListLoading(false);
+    try {
+      const order = await orderApi.getById(id);
+      setOrderDetail(order);
+    } catch (err) {
+      console.error('Error loading order:', err);
+    }
+    setDetailLoading(false);
+  };
+
+  const handleBackToList = async () => {
+    setSelectedOrderId(null);
+    setOrderDetail(null);
+    setSearchAttempted(false);
+    setFormData({ orderId: '', email: user?.email || '' });
+    
+    // Recargar lista de pedidos
+    setListLoading(true);
+    if (isLoggedIn && user?.email) {
+      try {
+        const orders = await orderApi.getMyOrders();
+        setUserOrders(orders);
+      } catch (err) {
+        console.error('Error reloading orders:', err);
+      }
+    }
+    setListLoading(false);
+  };
 
   useEffect(() => {
     if (user?.email) {
@@ -101,7 +152,14 @@ const OrderTracking = () => {
     <div className="page orders-page">
       <h1 className="h2-premium">Mis Pedidos</h1>
 
-      {isLoggedIn && userOrders.length > 0 && !orderId && !searchAttempted && (
+      {listLoading && (
+        <div className="glass-card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
+          <p>Cargando pedidos...</p>
+        </div>
+      )}
+
+      {!listLoading && isLoggedIn && userOrders.length > 0 && showOrderList && (
         <div className="user-orders-section">
           <div className="section-header">
             <div>
@@ -139,9 +197,9 @@ const OrderTracking = () => {
                 
                 <div className="order-card-footer">
                   <span className="order-total">{formatPrice(order.total || order.subtotal)}</span>
-                  <Link to={`/mis-pedidos/${order.id}`} className="btn-outline view-order-btn">
+                  <button onClick={() => handleViewOrder(order.id)} className="btn-outline view-order-btn">
                     Ver Detalles
-                  </Link>
+                  </button>
                 </div>
               </div>
             ))}
@@ -149,7 +207,8 @@ const OrderTracking = () => {
         </div>
       )}
 
-      <div className="glass-card order-search">
+      {showOrderList && (
+        <div className="glass-card order-search">
         <h3><Search size={20} /> Buscar Pedido</h3>
         <form onSubmit={handleLookup} className="search-form">
           <div className="form-group">
@@ -178,8 +237,9 @@ const OrderTracking = () => {
         </form>
         {error && <p className="error-text">{error}</p>}
       </div>
+      )}
 
-      {searchAttempted && !lookupResult && !loading && (
+      {searchAttempted && !order && !loading && (
         <div className="glass-card no-results">
           <Package size={48} />
           <h3>No se encontró el pedido</h3>
@@ -187,29 +247,40 @@ const OrderTracking = () => {
         </div>
       )}
 
-      {lookupResult && (
+      {detailLoading && (
+        <div className="glass-card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
+          <p>Cargando detalles del pedido...</p>
+        </div>
+      )}
+
+      {order && !detailLoading && (
         <div className="order-detail glass-card">
+          <button onClick={handleBackToList} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: '1rem', fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <ArrowLeft size={16} /> Volver a mis pedidos
+          </button>
+          
           <div className="order-detail-header">
             <div>
-              <h3>Pedido #{lookupResult.id}</h3>
-              <p>Fecha: {formatDate(lookupResult.createdAt)}</p>
+              <h3>Pedido #{order.id}</h3>
+              <p>Fecha: {formatDate(order.createdAt)}</p>
             </div>
             <span 
               className="order-status-badge"
-              style={{ background: `${statusColors[lookupResult.status]}20`, color: statusColors[lookupResult.status] }}
+              style={{ background: `${statusColors[order.status]}20`, color: statusColors[order.status] }}
             >
-              {statusLabels[lookupResult.status]}
+              {statusLabels[order.status]}
             </span>
           </div>
 
-          {lookupResult.status !== 'cancelled' && (
+          {order.status !== 'cancelled' && (
             <div className="order-progress">
               <div className="progress-bar">
-                <div className="progress-fill" style={{ width: getProgressWidth(lookupResult.status) }} />
+                <div className="progress-fill" style={{ width: getProgressWidth(order.status) }} />
               </div>
               <div className="progress-steps">
                 {statusOrder.map((status, idx) => (
-                  <div key={status} className={`progress-step ${getStepClass(idx, lookupResult.status)}`}>
+                  <div key={status} className={`progress-step ${getStepClass(idx, order.status)}`}>
                     <div className="step-dot" />
                     <span>{statusLabels[status]}</span>
                   </div>
@@ -218,7 +289,7 @@ const OrderTracking = () => {
             </div>
           )}
 
-          {lookupResult.trackingNumber && (
+          {order.trackingNumber && (
             <div className="tracking-info" style={{ 
               marginTop: '1.5rem', 
               padding: '1rem', 
@@ -228,26 +299,26 @@ const OrderTracking = () => {
             }}>
               <h4 style={{ color: '#06b6d4', marginBottom: '0.5rem' }}>Número de Rastreo</h4>
               <p style={{ fontFamily: 'monospace', fontSize: '1.1rem', fontWeight: 'bold' }}>
-                {lookupResult.trackingNumber}
+                {order.trackingNumber}
               </p>
             </div>
           )}
 
-          {(lookupResult.shippingAddress || lookupResult.address) && (
+          {(order.shippingAddress || order.address) && (
             <div className="shipping-info">
               <h4>Dirección de Envío</h4>
               <p>
-                {lookupResult.shippingAddress.name}<br />
-                {lookupResult.shippingAddress.street}<br />
-                {lookupResult.shippingAddress.city}, {lookupResult.shippingAddress.state} {lookupResult.shippingAddress.zip}<br />
-                {lookupResult.shippingAddress.country}
+                {order.customerName || order.shippingAddress?.name || 'Cliente'}<br />
+                {order.address || order.shippingAddress?.street}<br />
+                {order.city ? `${order.city}, ${order.state} ${order.zipCode}` : order.shippingAddress ? `${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zip}` : ''}<br />
+                {order.country || order.shippingAddress?.country}
               </p>
             </div>
           )}
 
           <div className="order-items">
             <h4>Artículos</h4>
-            {lookupResult.items?.map((item, idx) => (
+            {order.items?.map((item, idx) => (
               <div key={idx} className="order-item">
                 <div>
                   <p className="item-name">{item.name}</p>
@@ -261,11 +332,11 @@ const OrderTracking = () => {
           <div className="order-totals">
             <div className="total-row">
               <span>Subtotal</span>
-              <span>{formatPrice(lookupResult.subtotal)}</span>
+              <span>{formatPrice(order.subtotal)}</span>
             </div>
             <div className="total-row final">
               <span>Total</span>
-              <span>{formatPrice(lookupResult.total || lookupResult.subtotal)}</span>
+              <span>{formatPrice(order.total || order.subtotal)}</span>
             </div>
           </div>
         </div>
