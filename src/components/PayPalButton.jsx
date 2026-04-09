@@ -47,21 +47,27 @@ const PayPalButton = ({
       setSdkReady(true);
     };
 
-    initPayPal();
+    const timeoutId = setTimeout(initPayPal, 100);
 
     return () => {
       mounted = false;
+      clearTimeout(timeoutId);
     };
   }, [isConfigured]);
 
   useEffect(() => {
     if (isConfigured === null || !isConfigured || !sdkReady || !containerRef.current || !window.paypal) return;
 
+    let mounted = true;
+    let buttonsInstance = null;
+    
     containerRef.current.innerHTML = '';
     
     const container = containerRef.current;
     
-    window.paypal.Buttons({
+    if (!container.isConnected) return;
+    
+    buttonsInstance = window.paypal.Buttons({
       style: {
         layout: 'vertical',
         color: 'gold',
@@ -128,11 +134,30 @@ const PayPalButton = ({
       },
 
       onError: (err) => {
+        console.warn('PayPal error:', err);
+        if (err?.message?.includes('container') || err?.message?.includes('DOM')) {
+          return;
+        }
         if (onErrorRef.current) onErrorRef.current(err);
       },
-    }).render(container);
+    });
+
+    if (mounted && container.isConnected) {
+      buttonsInstance.render(container).catch(err => {
+        console.warn('PayPal render error:', err);
+      });
+    }
 
     setIsReady(true);
+
+    return () => {
+      mounted = false;
+      try {
+        if (buttonsInstance) {
+          buttonsInstance.close();
+        }
+      } catch (e) {}
+    };
   }, [isConfigured, sdkReady, cartItems, subtotal, disabled, style]);
 
   if (isConfigured === null) {

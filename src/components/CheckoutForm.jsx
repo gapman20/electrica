@@ -83,7 +83,7 @@ const CheckoutForm = ({ formData, errors, onChange, onSubmit, loading, paypalIsC
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Dirección de entrega</p>
                 <p style={{ color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: 1.5 }}>{formatAddress()}</p>
                 {formData.name && (
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.5rem' }}>{formData.name} • {formData.email}</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.5rem' }}>{formData.name} • {formData.email}{formData.phone && ` • ${formData.phone}`}</p>
                 )}
               </div>
               </div>
@@ -118,6 +118,20 @@ const CheckoutForm = ({ formData, errors, onChange, onSubmit, loading, paypalIsC
               onBlur={blur}
             />
             {errors.email && <span style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.25rem', display: 'block' }}>{errors.email}</span>}
+          </div>
+          <div className="form-grid-full">
+            <label style={labelStyle}>Teléfono</label>
+            <input 
+              type="tel" 
+              name="phone" 
+              value={formData.phone || ''} 
+              onChange={onChange} 
+              placeholder="10 dígitos"
+              style={inputSt}
+              onFocus={focus}
+              onBlur={blur}
+            />
+            {errors.phone && <span style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.25rem', display: 'block' }}>{errors.phone}</span>}
           </div>
           <div className="form-grid-full">
             <label style={labelStyle}>Dirección</label>
@@ -203,14 +217,9 @@ const CheckoutForm = ({ formData, errors, onChange, onSubmit, loading, paypalIsC
                 Cancelar
               </button>
             </div>
-          )}
+            )}
         </div>
       )}
-      {(!isEditing && !paypalIsConfigured) || (paypalIsConfigured && (!hasAddress || isEditing)) ? (
-        <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', marginTop: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          {loading ? 'Procesando...' : (paypalIsConfigured ? 'Guardar Dirección y Continuar' : 'Completar Pedido')}
-        </button>
-      ) : null}
     </form>
   );
 };
