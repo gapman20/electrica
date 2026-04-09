@@ -233,6 +233,10 @@ export const authApi = {
     localStorage.removeItem('token');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('tcg_user');
+    if (window.google?.accounts?.id) {
+      window.google.accounts.id.disableAutoSelect();
+      window.google.accounts.id.cancel();
+    }
     return true;
   },
 
