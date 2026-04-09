@@ -18,58 +18,72 @@ const Login = () => {
 
   useEffect(() => {
     const initGoogle = () => {
+      console.log('Google init starting...');
+      console.log('Google available:', !!window.google?.accounts?.id);
+      console.log('Client ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
+      
       if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: (response) => {
-            if (response.credential) {
-              fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/google`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ googleToken: response.credential }),
-              })
-              .then(res => res.json())
-              .then(data => {
-                if (data.token) {
-                  localStorage.setItem('auth_token', data.token);
-                  localStorage.setItem('tcg_user', JSON.stringify(data.user));
-                  setUser(data.user);
-                  navigate('/');
-                } else {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+            callback: (response) => {
+              console.log('Google callback received');
+              if (response.credential) {
+                fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/google`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ googleToken: response.credential }),
+                })
+                .then(res => res.json())
+                .then(data => {
+                  if (data.token) {
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('tcg_user', JSON.stringify(data.user));
+                    setUser(data.user);
+                    navigate('/');
+                  } else {
+                    Swal.fire({
+                      icon: 'error',
+                      title: 'Error',
+                      text: data.error || 'No se pudo iniciar sesión con Google',
+                      confirmButtonColor: '#d4af37',
+                      background: 'rgba(15, 23, 42, 0.95)',
+                      color: '#fff',
+                    });
+                  }
+                })
+                .catch(err => {
                   Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: data.error || 'No se pudo iniciar sesión con Google',
+                    text: err.message,
                     confirmButtonColor: '#d4af37',
                     background: 'rgba(15, 23, 42, 0.95)',
                     color: '#fff',
                   });
-                }
-              })
-              .catch(err => {
-                Swal.fire({
-                  icon: 'error',
-                  title: 'Error',
-                  text: err.message,
-                  confirmButtonColor: '#d4af37',
-                  background: 'rgba(15, 23, 42, 0.95)',
-                  color: '#fff',
                 });
-              });
+              }
             }
-          }
-        });
+          });
+          console.log('Google initialized successfully');
+        } catch (e) {
+          console.error('Error initializing Google:', e);
+        }
+      } else {
+        console.log('Google accounts.id not available');
       }
     };
 
     if (window.google?.accounts?.id) {
       initGoogle();
     } else {
+      console.log('Loading Google script...');
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
       script.onload = initGoogle;
+      script.onerror = () => console.error('Failed to load Google script');
       document.head.appendChild(script);
     }
   }, []);
@@ -156,6 +170,7 @@ const Login = () => {
               placeholder="••••••••" 
               value={formData.password} 
               onChange={handleChange}
+              autoComplete="current-password"
               style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${error ? '#ef4444' : 'var(--glass-border)'}`, color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
               required
             />
