@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { UserPlus } from 'lucide-react';
-import { useSite } from '../context/SiteContext';
+import { UserPlus, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { authApi } from '../services/api';
 import { useUser } from '../context/UserContext';
-import { Lock, Mail, ArrowLeft, User } from 'lucide-react';
 import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
+import PageLoader from '../components/PageLoader';
 
-const Login = () => {
+const Register = () => {
   const navigate = useNavigate();
-  const { login: adminLogin } = useSite();
-  const { login: userLogin, setUser } = useUser();
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const { setUser } = useUser();
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loginPhase, setLoginPhase] = useState('idle'); // 'idle' | 'checking-admin' | 'checking-user' | 'success'
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     const initGoogle = () => {
@@ -34,12 +38,13 @@ const Login = () => {
                   localStorage.setItem('auth_token', data.token);
                   localStorage.setItem('tcg_user', JSON.stringify(data.user));
                   setUser(data.user);
-                  navigate('/');
+                  setRedirecting(true);
+                  setTimeout(() => navigate('/'), 300);
                 } else {
                   Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: data.error || 'No se pudo iniciar sesión con Google',
+                    text: data.error || 'No se pudo registrar con Google',
                     confirmButtonColor: '#d4af37',
                     background: 'rgba(15, 23, 42, 0.95)',
                     color: '#fff',
@@ -62,50 +67,22 @@ const Login = () => {
       }
     };
 
-    if (window.google?.accounts?.id) {
-      initGoogle();
-    } else {
+    if (!window.google?.accounts?.id) {
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
       script.onload = initGoogle;
       document.head.appendChild(script);
+    } else {
+      initGoogle();
     }
   }, []);
 
-  const handleGoogleLogin = () => {
+  const handleGoogleRegister = () => {
     if (window.google?.accounts?.id) {
       window.google.accounts.id.prompt();
     }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    setLoginPhase('checking-admin');
-    const adminSuccess = await adminLogin(formData.email, formData.password);
-    
-    if (adminSuccess) {
-      setLoginPhase('success');
-      navigate('/admin');
-      return;
-    }
-
-    setLoginPhase('checking-user');
-    const userSuccess = await userLogin(formData.email, formData.password);
-    
-    if (userSuccess) {
-      setLoginPhase('success');
-      navigate('/');
-      return;
-    }
-
-    setLoginPhase('idle');
-    setError('Credenciales incorrectas');
-    setLoading(false);
   };
 
   const handleChange = (e) => {
@@ -113,9 +90,53 @@ const Login = () => {
     setError('');
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const result = await authApi.register(formData.email, formData.password, formData.name);
+      
+      if (result.success) {
+        Swal.fire({
+          icon: 'success',
+          title: '¡Cuenta creada!',
+          text: 'Ahora puedes iniciar sesión con tus credenciales.',
+          confirmButtonColor: '#d4af37',
+          background: 'rgba(15, 23, 42, 0.95)',
+          color: '#fff',
+        }).then(() => {
+          navigate('/login');
+        });
+      } else {
+        setError('No se pudo crear la cuenta. Intenta de nuevo.');
+      }
+    } catch (err) {
+      setError('El email ya está registrado o hay un error.');
+    }
+
+    setLoading(false);
+  };
+
+  if (redirecting) {
+    return <PageLoader />;
+  }
+
   return (
     <>
-      <SEO title="Iniciar Sesión" description="Inicia sesión en tu cuenta de Adventure TCG para hacer pedidos y ver tu historial" />
+      <SEO title="Crear Cuenta" description="Regístrate en Adventure TCG para hacer pedidos y obtener ofertas exclusivas" />
       <div className="page">
       <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: '2rem', fontSize: '0.9rem' }}>
         <ArrowLeft size={16} />
@@ -124,12 +145,28 @@ const Login = () => {
 
       <div className="glass-card" style={{ maxWidth: '420px', margin: '0 auto', padding: '2.5rem', textAlign: 'center' }}>
         <div style={{ width: '60px', height: '60px', background: 'rgba(212, 175, 55, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', color: 'var(--accent-gold)' }}>
-          <User size={28} />
+          <UserPlus size={28} />
         </div>
-        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>Iniciar Sesión</h2>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>Ingresa tu email y contraseña</p>
+        <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>Crear Cuenta</h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>Regístrate para hacer pedidos y ver tu historial</p>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              <User size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+              Nombre
+            </label>
+            <input 
+              type="text" 
+              name="name"
+              placeholder="Tu nombre" 
+              value={formData.name} 
+              onChange={handleChange}
+              style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
+              required
+            />
+          </div>
+          
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
               <Mail size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
@@ -148,13 +185,31 @@ const Login = () => {
           
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              <Lock size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
               Contraseña
             </label>
             <input 
               type="password" 
               name="password"
-              placeholder="••••••••" 
+              placeholder="Mínimo 6 caracteres" 
               value={formData.password} 
+              onChange={handleChange}
+              style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${error ? '#ef4444' : 'var(--glass-border)'}`, color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
+              required
+              minLength={6}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              <Lock size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+              Confirmar Contraseña
+            </label>
+            <input 
+              type="password" 
+              name="confirmPassword"
+              placeholder="Repite la contraseña" 
+              value={formData.confirmPassword} 
               onChange={handleChange}
               style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${error ? '#ef4444' : 'var(--glass-border)'}`, color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
               required
@@ -168,12 +223,7 @@ const Login = () => {
           )}
           
           <button type="submit" disabled={loading} className="btn-primary" style={{ marginTop: '0.5rem', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}>
-            {loading 
-              ? loginPhase === 'checking-admin' ? 'Verificando como admin...' 
-              : loginPhase === 'checking-user' ? 'Verificando como usuario...'
-              : 'Verificando...'
-              : 'Iniciar Sesión'
-            }
+            {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
           </button>
         </form>
 
@@ -184,7 +234,7 @@ const Login = () => {
         </div>
 
         <button 
-          onClick={handleGoogleLogin}
+          onClick={handleGoogleRegister}
           className="btn-primary"
           style={{ 
             width: '100%', 
@@ -213,13 +263,7 @@ const Login = () => {
         </button>
 
         <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          ¿No tienes cuenta? <Link to="/registro" style={{ color: 'var(--accent-gold)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><UserPlus size={14} /> Regístrate</Link>
-        </p>
-
-        <p style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-          <Link to="/recuperar-password" style={{ color: 'var(--accent-gold)', textDecoration: 'none' }}>
-            ¿Olvidaste tu contraseña?
-          </Link>
+          ¿Ya tienes cuenta? <Link to="/login" style={{ color: 'var(--accent-gold)', textDecoration: 'none' }}>Inicia sesión</Link>
         </p>
       </div>
     </div>
@@ -227,4 +271,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

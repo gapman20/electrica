@@ -1,26 +1,50 @@
 import React, { useState } from 'react';
 import LocationMap from '../components/LocationMap';
-import { Mail, Phone, MapPin, Send, MessageSquare } from 'lucide-react';
+import { Mail, MapPin, Send, MessageSquare } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
+import Swal from 'sweetalert2';
+import SEO from '../components/SEO';
 
 const Contact = () => {
   const { content, addMessage } = useSite();
   const c = content.contact;
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
-  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if(formData.name && formData.email) {
-      addMessage(formData);
-      setSent(true);
+    if(!formData.name || !formData.email) return;
+    
+    setSending(true);
+    const success = await addMessage(formData);
+    setSending(false);
+    
+    if(success) {
       setFormData({ name: '', email: '', message: '' });
-      setTimeout(() => setSent(false), 4000);
+      Swal.fire({
+        icon: 'success',
+        title: '¡Mensaje enviado!',
+        text: 'Te responderemos lo antes posible.',
+        confirmButtonColor: '#d4af37',
+        background: 'rgba(15, 23, 42, 0.95)',
+        color: '#fff',
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo enviar el mensaje. Intenta de nuevo.',
+        confirmButtonColor: '#ef4444',
+        background: 'rgba(15, 23, 42, 0.95)',
+        color: '#fff',
+      });
     }
   };
 
   return (
-    <div className="page" style={{ position: 'relative', zIndex: 1 }}>
+    <>
+      <SEO title="Contacto" description="Contáctanos para más información sobre cartas coleccionables, precios y envíos. Estamos para ayudarte." />
+      <div className="page" style={{ position: 'relative', zIndex: 1 }}>
       <div style={{ position: 'absolute', top: '10%', left: '10%', width: '500px', height: '500px', background: 'var(--accent-gold)', filter: 'blur(250px)', opacity: '0.1', borderRadius: '50%', zIndex: -1 }}></div>
 
       <header style={{ textAlign: 'center', marginBottom: '5rem', marginTop: '2rem' }}>
@@ -30,7 +54,7 @@ const Contact = () => {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1fr)', gap: '4rem', alignItems: 'start' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(300px, 1fr)', gap: '4rem', alignItems: 'start' }}>
 
         {/* Contact Info & Map */}
         <div className="animate-fade-up delay-100" style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
@@ -84,13 +108,14 @@ const Contact = () => {
               <textarea required placeholder="¿Qué carta buscas? ¿Tienes alguna duda?" rows="5" value={formData.message} onChange={e=>setFormData({...formData, message: e.target.value})} style={{ width: '100%', padding: '16px', background: 'rgba(5,5,5,0.5)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '12px', resize: 'vertical', fontFamily: 'var(--font-body)', outline: 'none', transition: 'border-color 0.3s' }} onFocus={e => e.target.style.borderColor = 'var(--accent-gold)'} onBlur={e => e.target.style.borderColor = 'var(--glass-border)'}></textarea>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}>
-              {sent ? '¡Mensaje Enviado!' : 'Enviar Mensaje'} <Send size={18} />
+            <button type="submit" className="btn-primary" style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }} disabled={sending}>
+              {sending ? 'Enviando...' : 'Enviar Mensaje'} <Send size={18} />
             </button>
           </form>
         </div>
       </div>
     </div>
+    </>
   );
 };
 

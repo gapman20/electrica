@@ -14,16 +14,28 @@ const PayPalButton = ({
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState(null);
   const [sdkReady, setSdkReady] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(null);
+  
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+  const onCancelRef = useRef(onCancel);
 
   useEffect(() => {
+    onSuccessRef.current = onSuccess;
+    onErrorRef.current = onError;
+    onCancelRef.current = onCancel;
+  }, [onSuccess, onError, onCancel]);
+
+  useEffect(() => {
+    setIsConfigured(isPayPalConfigured());
+  }, []);
+
+  useEffect(() => {
+    if (isConfigured === null || !isConfigured) return;
+    
     let mounted = true;
     
     const initPayPal = async () => {
-      if (!isPayPalConfigured()) {
-        setError('PayPal no está configurado. Añade VITE_PAYPAL_CLIENT_ID a tu archivo .env');
-        return;
-      }
-
       const loaded = await loadPayPalScript();
       if (!mounted) return;
       
@@ -35,21 +47,27 @@ const PayPalButton = ({
       setSdkReady(true);
     };
 
-    initPayPal();
+    const timeoutId = setTimeout(initPayPal, 100);
 
     return () => {
       mounted = false;
+      clearTimeout(timeoutId);
     };
-  }, []);
+  }, [isConfigured]);
 
   useEffect(() => {
-    if (!sdkReady || !containerRef.current || !window.paypal) return;
+    if (isConfigured === null || !isConfigured || !sdkReady || !containerRef.current || !window.paypal) return;
 
+    let mounted = true;
+    let buttonsInstance = null;
+    
     containerRef.current.innerHTML = '';
     
     const container = containerRef.current;
     
-    window.paypal.Buttons({
+    if (!container.isConnected) return;
+    
+    buttonsInstance = window.paypal.Buttons({
       style: {
         layout: 'vertical',
         color: 'gold',
@@ -99,52 +117,55 @@ const PayPalButton = ({
       onApprove: async (data, actions) => {
         try {
           const details = await actions.order.capture();
-          if (onSuccess) {
-            onSuccess({
+          if (onSuccessRef.current) {
+            onSuccessRef.current({
               paypalOrderId: data.orderID,
               paypalDetails: details,
-              status: 'paid',
+              status: details.status,
             });
           }
         } catch (err) {
-          if (onError) {
-            onError(err);
-          }
+          if (onErrorRef.current) onErrorRef.current(err);
         }
       },
 
       onCancel: (data) => {
-        if (onCancel) {
-          onCancel(data);
-        }
+        if (onCancelRef.current) onCancelRef.current(data);
       },
 
       onError: (err) => {
-        console.error('PayPal error:', err);
-        if (onError) {
-          onError(err);
+        console.warn('PayPal error:', err);
+        if (err?.message?.includes('container') || err?.message?.includes('DOM')) {
+          return;
         }
+        if (onErrorRef.current) onErrorRef.current(err);
       },
-    }).render(container);
+    });
+
+    if (mounted && container.isConnected) {
+      buttonsInstance.render(container).catch(err => {
+        console.warn('PayPal render error:', err);
+      });
+    }
 
     setIsReady(true);
-  }, [sdkReady, cartItems, subtotal, disabled, style, onSuccess, onError, onCancel]);
 
-  if (!isPayPalConfigured()) {
-    return (
-      <div style={{ 
-        padding: '1rem', 
-        background: 'rgba(255, 200, 0, 0.1)', 
-        borderRadius: '8px',
-        border: '1px solid rgba(255, 200, 0, 0.3)',
-        textAlign: 'center',
-        color: '#ffcc00',
-        fontSize: '0.875rem',
-        marginTop: '1rem'
-      }}>
-        PayPal sandbox no configurado. Añade tu client ID en el archivo .env
-      </div>
-    );
+    return () => {
+      mounted = false;
+      try {
+        if (buttonsInstance) {
+          buttonsInstance.close();
+        }
+      } catch (e) {}
+    };
+  }, [isConfigured, sdkReady, cartItems, subtotal, disabled, style]);
+
+  if (isConfigured === null) {
+    return null;
+  }
+
+  if (!isConfigured) {
+    return null;
   }
 
   if (error) {
@@ -167,10 +188,11 @@ const PayPalButton = ({
   if (!sdkReady) {
     return (
       <div style={{ 
-        padding: '2rem', 
+        padding: '1rem', 
         textAlign: 'center',
         color: 'var(--text-secondary)',
-        fontSize: '0.875rem'
+        fontSize: '0.875rem',
+        marginTop: '1rem'
       }}>
         Cargando PayPal...
       </div>

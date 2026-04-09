@@ -2,21 +2,28 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../services/api';
 
 const USER_KEY = 'tcg_user';
+const TOKEN_KEY = 'token';
 
 const UserContext = createContext(null);
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loginCallbacks, setLoginCallbacks] = useState([]);
+  const [logoutCallbacks, setLogoutCallbacks] = useState([]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem(USER_KEY);
-    if (savedUser) {
+    const savedToken = localStorage.getItem(TOKEN_KEY) || localStorage.getItem('auth_token');
+    
+    if (savedUser && savedToken) {
       try {
         setUser(JSON.parse(savedUser));
       } catch (e) {
         console.error('Error parsing user data:', e);
         localStorage.removeItem(USER_KEY);
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem('auth_token');
       }
     }
     setLoading(false);
@@ -27,6 +34,7 @@ export const UserProvider = ({ children }) => {
       const result = await authApi.login(email, password);
       if (result.success) {
         setUser(result.user);
+        loginCallbacks.forEach(cb => cb(result.user));
         return result;
       }
       return result;
@@ -37,6 +45,7 @@ export const UserProvider = ({ children }) => {
   };
 
   const logout = () => {
+    logoutCallbacks.forEach(cb => cb());
     authApi.logout();
     setUser(null);
   };
@@ -48,13 +57,24 @@ export const UserProvider = ({ children }) => {
     setUser(updatedUser);
   };
 
+  const onLogin = (callback) => {
+    setLoginCallbacks(prev => [...prev, callback]);
+  };
+
+  const onLogout = (callback) => {
+    setLogoutCallbacks(prev => [...prev, callback]);
+  };
+
   const value = {
     user,
+    setUser,
     loading,
     isLoggedIn: !!user,
     login,
     logout,
-    updateUser
+    updateUser,
+    onLogin,
+    onLogout
   };
 
   return (

@@ -15,8 +15,9 @@ export const loadPayPalScript = () => {
 
     const script = document.createElement('script');
     script.id = 'paypal-sdk';
-    script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=USD&intent=capture`;
     script.async = true;
+    script.setAttribute('data-namespace', 'paypal');
     
     script.onload = () => {
       paypalScriptLoaded = true;

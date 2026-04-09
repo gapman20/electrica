@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Grid, List, Filter, Heart, ShoppingCart } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Grid, List, Filter, Heart, ShoppingCart, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { cardApi, gameApi } from '../services/api';
-
-const CARDS_KEY = 'tcg_cards';
+import ProductCard from '../components/ProductCard';
 
 const formatPrice = (price) => {
-  if (typeof price === 'number') {
-    return `$${price.toLocaleString('es-MX')}`;
-  }
-  return price || '';
+  if (!price) return '';
+  const num = typeof price === 'number' ? price : parseFloat(price);
+  if (isNaN(num)) return price || '';
+  return `$${num.toLocaleString('es-MX')} MXN`;
 };
 
 const normalizeCard = (card) => ({
@@ -56,25 +55,6 @@ const SORT_OPTIONS = [
   { id: 'price-desc', name: 'Precio: Mayor a Menor' }
 ];
 
-const sampleSingles = [
-  { id: 'c1', name: 'Charizard ex', price: 2500, priceDisplay: '$2,500', game: 'pokemon', set: 'Phantasmal Flames', rarity: 'ultra', image: null, stock: 3 },
-  { id: 'c2', name: 'Mewtwo ex', price: 800, priceDisplay: '$800', game: 'pokemon', set: 'Destined Rivals', rarity: 'rare', image: null, stock: 5 },
-  { id: 'c3', name: 'Garchomp ex SIR', price: 5100, priceDisplay: '$5,100', game: 'pokemon', set: 'Destined Rivals', rarity: 'secret', badge: 'Popular', image: null, stock: 1 },
-  { id: 'c4', name: 'Blue-Eyes White Dragon', price: 1200, priceDisplay: '$1,200', game: 'yugioh', set: 'Structure Deck', rarity: 'rare', image: null, stock: 4 },
-  { id: 'c5', name: 'Dark Magician', price: 600, priceDisplay: '$600', game: 'yugioh', set: 'Structure Deck', rarity: 'rare', image: null, stock: 6 },
-  { id: 'c6', name: 'Omnipotence Alpha', price: 450, priceDisplay: '$450', game: 'magic', set: 'Marvel Super Heroes', rarity: 'full-art', image: null, stock: 2 },
-  { id: 'c7', name: 'Omnitrix', price: 380, priceDisplay: '$380', game: 'magic', set: 'Marvel Super Heroes', rarity: 'alternate-art', image: null, stock: 3 },
-  { id: 'c8', name: 'MetalGarurumon', price: 850, priceDisplay: '$850', game: 'digimon', set: 'BT-15', rarity: 'rare', image: null, stock: 4 },
-  { id: 'c9', name: 'Lucemon', price: 1200, priceDisplay: '$1,200', game: 'digimon', set: 'BT-15', rarity: 'ultra', image: null, stock: 2 },
-  { id: 'c10', name: 'Luffy Leader', price: 650, priceDisplay: '$650', game: 'onepiece', set: 'OP-10', rarity: 'rare', image: null, stock: 5 },
-  { id: 'c11', name: 'Goku Ultra Instinct', price: 1800, priceDisplay: '$1,800', game: 'dragonball', set: 'Series 2', rarity: 'ultra', badge: 'Nuevo', image: null, stock: 2 },
-  { id: 'c12', name: 'Skyla Full Art Promo', price: 7500, priceDisplay: '$7,500', game: 'pokemon', set: 'Promo', rarity: 'full-art', badge: 'Rara', image: null, stock: 1 },
-  { id: 'c13', name: 'Pikachu ex', price: 350, priceDisplay: '$350', game: 'pokemon', set: 'Scarlet & Violet', rarity: 'rare', image: null, stock: 10 },
-  { id: 'c14', name: 'Venusaur ex', price: 1200, priceDisplay: '$1,200', game: 'pokemon', set: 'Paldea Evolved', rarity: 'ultra', image: null, stock: 3 },
-  { id: 'c15', name: 'Dark Magician Girl', price: 400, priceDisplay: '$400', game: 'yugioh', set: 'Structure Deck', rarity: 'holo', image: null, stock: 7 },
-  { id: 'c16', name: 'Spider-Man Collector', price: 2800, priceDisplay: '$2,800', game: 'magic', set: 'Marvel Spider-Man', rarity: 'alternate-art', image: null, stock: 1 }
-];
-
 const RARITY_COLORS = {
   common: '#9ca3af',
   uncommon: '#22c55e',
@@ -90,19 +70,30 @@ const SingleCard = ({ card, onAddToCart }) => {
   const [isHovered, setIsHovered] = useState(false);
   const { isInWishlist, toggleItem } = useWishlist();
   const toast = useToast();
+  const isLoggedIn = !!localStorage.getItem('tcg_user');
+  const [addedToCart, setAddedToCart] = useState(false);
   
   const rarityColor = RARITY_COLORS[card.rarity] || '#9ca3af';
-  const wishlisted = isInWishlist(card.id);
+  const wishlisted = isInWishlist(card.id, 'card');
   
   const handleToggleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const wasAdded = toggleItem(card);
+    const wasAdded = toggleItem({ ...card, type: 'card' });
     if (wasAdded) {
       toast.success(`${card.name} añadido a favoritos`);
     } else {
       toast.info(`${card.name} eliminado de favoritos`);
     }
+  };
+
+  const handleAddToCart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (card.stock === 0) return;
+    onAddToCart(card);
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
   };
   
   return (
@@ -129,15 +120,14 @@ const SingleCard = ({ card, onAddToCart }) => {
         )}
         
         <div className={`product-actions ${isHovered || window.innerWidth < 768 ? 'visible' : ''}`}>
-          <button 
-            className="action-btn wishlist-btn"
-            onClick={handleToggleWishlist}
-          >
-            <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
-          </button>
-          <button className="action-btn cart-btn" onClick={() => onAddToCart(card)}>
-            <ShoppingCart size={20} />
-          </button>
+          {isLoggedIn && (
+            <button 
+              className="action-btn wishlist-btn"
+              onClick={handleToggleWishlist}
+            >
+              <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
+            </button>
+          )}
         </div>
         
         {card.stock === 0 && (
@@ -158,10 +148,14 @@ const SingleCard = ({ card, onAddToCart }) => {
         </div>
         <button 
           className="add-to-cart-btn"
-          onClick={() => onAddToCart(card)}
+          onClick={handleAddToCart}
           disabled={card.stock === 0}
+          style={{
+            background: addedToCart ? '#10b981' : undefined,
+            transition: 'all 0.3s ease'
+          }}
         >
-          {card.stock === 0 ? 'Agotado' : 'Agregar al carrito'}
+          {card.stock === 0 ? 'Agotado' : addedToCart ? <><Check size={16} /> Agregado</> : 'Agregar al carrito'}
         </button>
       </div>
     </div>
@@ -171,7 +165,7 @@ const SingleCard = ({ card, onAddToCart }) => {
 const Catalog = () => {
   const { addItem } = useCart();
   
-  const [cardsData, setCardsData] = useState(sampleSingles);
+  const [cardsData, setCardsData] = useState([]);
   const [selectedGame, setSelectedGame] = useState('all');
   const [selectedRarity, setSelectedRarity] = useState('all');
   const [sortBy, setSortBy] = useState('name-asc');
@@ -179,51 +173,30 @@ const Catalog = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const loadCards = async () => {
       setLoading(true);
+      setError(false);
       try {
         const cards = await cardApi.getAll();
-        if (cards && cards.length > 0) {
-          setCardsData(cards.map(card => ({
-            ...card,
-            image: card.imageUrl,
-            game: typeof card.game === 'object' ? card.game.name : card.game,
-            priceDisplay: formatPrice(card.price)
-          })));
-        }
+        setCardsData(cards.map(card => ({
+          ...card,
+          image: card.imageUrl,
+          game: typeof card.game === 'object' ? card.game.name : card.game,
+          priceDisplay: formatPrice(card.price)
+        })));
       } catch (e) {
         console.error('Error loading cards from API:', e);
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
 
     loadCards();
-    
-    const handleStorageChange = (e) => {
-      if (e.key === CARDS_KEY) {
-        try {
-          const stored = localStorage.getItem(CARDS_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setCardsData(parsed.map(normalizeCard));
-            }
-          }
-        } catch (err) {
-          console.error('Error loading cards from localStorage:', err);
-        }
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [CARDS_KEY]);
+  }, []);
 
   const cards = useMemo(() => {
     let filtered = [...cardsData];
@@ -270,7 +243,9 @@ const Catalog = () => {
       name: card.name,
       price: card.price,
       image: card.image,
-      game: card.game
+      game: card.game,
+      rarity: card.rarity,
+      stock: card.stock
     });
   };
   
@@ -412,24 +387,35 @@ const Catalog = () => {
         </div>
         
         {/* Cards Grid */}
-        {cards.length > 0 ? (
+        {loading ? (
+          <div className="catalog-empty">
+            <span className="empty-icon">⏳</span>
+            <h3>Cargando cartas...</h3>
+          </div>
+        ) : error ? (
+          <div className="catalog-empty">
+            <span className="empty-icon">⚠️</span>
+            <h3>No se pudo cargar las cartas</h3>
+            <p>Revisa tu conexión e intenta de nuevo</p>
+            <button className="btn-primary" onClick={() => window.location.reload()}>
+              Reintentar
+            </button>
+          </div>
+        ) : cards.length > 0 ? (
           <div className={`single-cards-grid ${viewMode}`}>
             {cards.map(card => (
-              <SingleCard 
+              <ProductCard 
                 key={card.id} 
-                card={card} 
-                onAddToCart={handleAddToCart} 
+                item={card} 
+                type="card"
               />
             ))}
           </div>
         ) : (
           <div className="catalog-empty">
             <span className="empty-icon">🎴</span>
-            <h3>No se encontraron cartas</h3>
-            <p>Intenta con otros filtros o búsqueda</p>
-            <button className="btn-primary" onClick={clearFilters}>
-              Limpiar filtros
-            </button>
+            <h3>No hay cartas disponibles</h3>
+            <p>Revisa el backend y la base de datos</p>
           </div>
         )}
       </div>

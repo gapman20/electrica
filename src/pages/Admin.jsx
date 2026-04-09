@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSite } from '../context/SiteContext';
 import { useToast } from '../components/Toast';
 import ImageUploader from '../components/ImageUploader';
 import scryfallApi from '../services/scryfallApi';
 import pokemonTcgApi, { formatPokemonCard } from '../services/pokemonTcgApi';
-import api, { getGameValue } from '../services/api';
+import api, { getGameValue, orderApi } from '../services/api';
 import Swal from 'sweetalert2';
 import {
   LayoutDashboard, FileText, Settings, Mail, Info,
   Save, RotateCcw, CheckCircle, AlertCircle, Eye,
   Image as ImageIcon, Palette, BarChart2, Globe,
-  MessageSquare, Zap, Users, TrendingUp, Monitor,
+  MessageSquare, Users, TrendingUp, Monitor,
   ToggleLeft, ToggleRight, RefreshCw, Plus, Trash2, Package,
   Columns, ArrowUp, ArrowDown, Bold, List, BarChart, Lock,
-  Gamepad2, Layers, Tag, Calendar, Percent, Search
+  Gamepad2, Layers, Tag, Calendar, Percent, Search,
+  Truck
 } from 'lucide-react';
 
 const showDeleteAlert = (itemType = 'este elemento') => {
@@ -181,8 +183,8 @@ const insertFormat = (path, value, formatType, onChange) => {
 // ─── Sidebar Sections ─────────────────────────────────────────────────────────
 const sections = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} /> },
+  { id: 'orders', label: 'Pedidos', icon: <Package size={17} /> },
   { id: 'inbox', label: 'Bandeja de Entrada', icon: <Mail size={17} /> },
-  { id: 'pages', label: 'Páginas & Menú', icon: <FileText size={17} /> },
   { id: 'sellados', label: 'Sellados', icon: <Package size={17} /> },
   { id: 'cards', label: 'Cartas Sueltas', icon: <Layers size={17} /> },
   { id: 'campaigns', label: 'Campañas Oferta', icon: <Tag size={17} /> },
@@ -191,7 +193,6 @@ const sections = [
   { id: 'seo', label: 'SEO', icon: <Globe size={17} /> },
   { id: 'home', label: 'Inicio', icon: <Monitor size={17} /> },
   { id: 'about', label: 'Nosotros', icon: <Info size={17} /> },
-  { id: 'services', label: 'Colecciones', icon: <Zap size={17} /> },
   { id: 'blog', label: 'Blog', icon: <FileText size={17} /> },
   { id: 'contact', label: 'Contacto', icon: <Mail size={17} /> },
   { id: 'social', label: 'Redes Sociales', icon: <Globe size={17} /> },
@@ -207,18 +208,19 @@ const Admin = () => {
     images, updateImage,
     theme, updateTheme, resetTheme,
     blogPosts = [], createBlogPost, updateBlogPost, deleteBlogPost, duplicateBlogPost,
-    pages = [], createPage, updatePage, deletePage, movePage,
     products = [], createProduct, updateProduct, deleteProduct, moveProduct,
     analytics, trackAnalytics,
-    inbox = [], markMessageRead, deleteMessage, logout,
+    inbox = [], markMessageRead, deleteMessage, loadMessages, logout,
     campaigns = [], createCampaign, updateCampaign, deleteCampaign,
     saveContent, resetContent, saveStatus,
   } = useSite();
+  const navigate = useNavigate();
   const toast = useToast();
 
   const [active, setActive] = useState('dashboard');
   const [editPost, setEditPost] = useState(null);
   const [splitView, setSplitView] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   // Cards state for TCG card management
   const [cards, setCards] = useState([]);
@@ -243,6 +245,129 @@ const Admin = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
+  const lastMessageId = React.useRef(null);
+  const lastMessageDate = React.useRef(null);
+  const lastOrderId = React.useRef(null);
+  const lastOrderDate = React.useRef(null);
+
+  // Orders state
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderFilter, setOrderFilter] = useState('all');
+
+  // Load orders from API (only update if there are changes)
+  const loadOrders = async (showLoading = false) => {
+    if (showLoading) setOrdersLoading(true);
+    try {
+      const data = await orderApi.getAll();
+      const newOrders = data || [];
+      
+      // Only update if there are actual changes (different length or different IDs)
+      const currentIds = orders.map(o => o.id).sort().join(',');
+      const newIds = newOrders.map(o => o.id).sort().join(',');
+      
+      if (currentIds !== newIds) {
+        setOrders(newOrders);
+      }
+    } catch (err) {
+      console.error('Error loading orders:', err);
+    } finally {
+      if (showLoading) setOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (active === 'inbox') {
+      loadMessages();
+    }
+    if (active === 'orders') {
+      loadOrders(true);
+    }
+  }, [active]);
+
+  useEffect(() => {
+    const checkNewMessages = async () => {
+      await loadMessages();
+    };
+    
+    const checkNewOrders = async () => {
+      await loadOrders();
+    };
+
+    const checkSellados = async () => {
+      try {
+        const data = await api.products.getAll();
+        if (Array.isArray(data)) {
+          setSellados(prev => {
+            const hasChanges = JSON.stringify(prev) !== JSON.stringify(data);
+            return hasChanges ? data : prev;
+          });
+        }
+      } catch (err) {
+        console.error('Error refreshing sellados:', err);
+      }
+    };
+
+    const checkCards = async () => {
+      try {
+        const data = await api.cards.getAll();
+        if (Array.isArray(data)) {
+          setCards(prev => {
+            const hasChanges = JSON.stringify(prev) !== JSON.stringify(data);
+            return hasChanges ? data : prev;
+          });
+        }
+      } catch (err) {
+        console.error('Error refreshing cards:', err);
+      }
+    };
+    
+    const interval = setInterval(() => {
+      checkNewMessages();
+      checkNewOrders();
+      checkSellados();
+      checkCards();
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (inbox.length > 0) {
+      const latestMessage = inbox[0];
+      if (lastMessageId.current === null) {
+        lastMessageId.current = latestMessage.id;
+        lastMessageDate.current = latestMessage.createdAt;
+      } else if (lastMessageId.current !== latestMessage.id) {
+        const currentDate = new Date(latestMessage.createdAt);
+        const previousDate = lastMessageDate.current ? new Date(lastMessageDate.current) : null;
+        if (!previousDate || currentDate > previousDate) {
+          toast.success(`Nuevo mensaje de ${latestMessage.name}: "${latestMessage.message.substring(0, 30)}..."`);
+        }
+        lastMessageId.current = latestMessage.id;
+        lastMessageDate.current = latestMessage.createdAt;
+      }
+    }
+  }, [inbox.length]);
+
+  useEffect(() => {
+    if (orders.length > 0) {
+      const latestOrder = orders[0];
+      if (lastOrderId.current === null) {
+        lastOrderId.current = latestOrder.id;
+        lastOrderDate.current = latestOrder.createdAt;
+      } else if (lastOrderId.current !== latestOrder.id) {
+        const currentDate = new Date(latestOrder.createdAt);
+        const previousDate = lastOrderDate.current ? new Date(lastOrderDate.current) : null;
+        if (!previousDate || currentDate > previousDate) {
+          const total = latestOrder.total || latestOrder.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
+          toast.success(`Nuevo pedido #${latestOrder.orderNumber}: $${Number(total).toLocaleString('es-MX')} MXN`);
+        }
+        lastOrderId.current = latestOrder.id;
+        lastOrderDate.current = latestOrder.createdAt;
+      }
+    }
+  }, [orders.length, toast]);
 
   const handleCardSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -396,6 +521,7 @@ const Admin = () => {
     setNewCardId(tempId);
     setCards(prev => [newCard, ...prev]);
     setEditingCard(tempId);
+    setCreatingCard(false);
   };
 
   const saveCard = async (cardId) => {
@@ -431,6 +557,15 @@ const Admin = () => {
   const deleteCard = async (cardId) => {
     const result = await showDeleteAlert('esta carta');
     if (!result.isConfirmed) return;
+    
+    const card = cards.find(c => c.id === cardId);
+    
+    if (card?.isNew) {
+      setCards(prev => prev.filter(c => c.id !== cardId));
+      if (editingCard === cardId) setEditingCard(null);
+      return;
+    }
+    
     setCards(prev => prev.filter(c => c.id !== cardId));
     try {
       await api.cards.delete(cardId);
@@ -573,6 +708,13 @@ const Admin = () => {
     if (!result.isConfirmed) return;
     
     const sellado = sellados.find(s => s.id === id);
+    
+    if (sellado?.isNew) {
+      setSellados(prev => prev.filter(item => item.id !== id));
+      setEditingSellado(null);
+      return;
+    }
+    
     setSellados(prev => prev.filter(item => item.id !== id));
     try {
       await api.products.delete(id);
@@ -609,12 +751,11 @@ const Admin = () => {
 
       // ── Dashboard ─────────────────────────────────────────────────────────
       case 'dashboard': {
-        const activePages = pages.filter(p => p.active).length;
-        const totalImages = [images.logo, images.heroBg, images.aboutHero, ...(images.portfolio || [])].filter(Boolean).length;
+        const totalImages = [images.logo, images.heroBg, images.aboutHero].filter(Boolean).length;
         
         const dashboardSellados = sellados;
         const dashboardCards = cards;
-        const orders = JSON.parse(localStorage.getItem('tcg_orders') || '[]');
+        const dashboardOrders = orders;
         
         const totalProducts = dashboardSellados.length + dashboardCards.length;
         const activeProducts = [...dashboardSellados, ...dashboardCards].filter(p => p.active !== false).length;
@@ -624,23 +765,23 @@ const Admin = () => {
         const inventoryValue = [...dashboardSellados, ...dashboardCards].reduce((sum, p) => sum + (p.price * (p.stock || 0)), 0);
         
         const now = new Date();
-        const todayOrders = orders.filter(o => {
+        const todayOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
           return orderDate.toDateString() === now.toDateString();
         });
-        const weekOrders = orders.filter(o => {
+        const weekOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
           const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           return orderDate >= weekAgo;
         });
-        const monthOrders = orders.filter(o => {
+        const monthOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
           const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           return orderDate >= monthAgo;
         });
         
-        const topProduct = orders.length > 0 
-          ? orders.reduce((acc, order) => {
+        const topProduct = dashboardOrders.length > 0 
+          ? dashboardOrders.reduce((acc, order) => {
               order.items?.forEach(item => {
                 acc[item.name] = (acc[item.name] || 0) + item.quantity;
               });
@@ -688,7 +829,7 @@ const Admin = () => {
               <StatCard label="Pedidos Hoy" val={todayOrders.length} sub="Últimas 24h" color="#25d366" Icon={BarChart2} />
               <StatCard label="Pedidos Semana" val={weekOrders.length} sub="Últimos 7 días" color="#3b82f6" Icon={BarChart2} />
               <StatCard label="Pedidos Mes" val={monthOrders.length} sub="Últimos 30 días" color="#8b5cf6" Icon={BarChart2} />
-              <StatCard label="Total Pedidos" val={orders.length} sub="Registrados" color="#f59e0b" Icon={BarChart2} />
+              <StatCard label="Total Pedidos" val={dashboardOrders.length} sub="Registrados" color="#f59e0b" Icon={BarChart2} />
             </div>
 
             {/* Top Product & More Info */}
@@ -738,7 +879,6 @@ const Admin = () => {
                   {[
                     { label: '📦 Agregar Sellado', section: 'sellados', action: 'create' },
                     { label: '🃏 Agregar Carta', section: 'cards', action: 'create' },
-                    { label: '📄 Gestionar Páginas', section: 'pages' },
                     { label: '🎨 Cambiar Colores', section: 'theme' },
                   ].map(q => (
                     <button key={q.label} onClick={() => {
@@ -764,7 +904,6 @@ const Admin = () => {
                   { label: 'Nombre', val: content.siteName },
                   { label: 'Email', val: content.contact?.email },
                   { label: 'WhatsApp', val: content.contact?.whatsapp },
-                  { label: 'Páginas Activas', val: `${activePages}/${pages.length}` },
                 ].map((row, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{row.label}</span>
@@ -779,87 +918,6 @@ const Admin = () => {
           </div>
         );
       }
-
-      // ── Pages / Menu ──────────────────────────────────────────────────────
-      case 'pages':
-        return (
-          <div>
-            <h3 style={sectionTitle}><FileText size={20} color="var(--accent-gold)" /> Páginas & Menú</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem' }}>Activa o desactiva las páginas, cambia su nombre en el menú, o crea páginas personalizadas nuevas.</p>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginBottom: '2.5rem' }}>
-              {pages.map((page, i) => (
-                <div key={page.id} style={{ padding: '1.5rem', background: 'var(--glass-bg)', border: `1px solid ${page.active ? 'var(--accent-gold)' : 'var(--glass-border)'}`, borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: '800', fontSize: '1.1rem', color: page.active ? 'white' : 'var(--text-secondary)' }}>{page.name}</span>
-                      {page.isCustom ? 
-                        <span style={{ fontSize: '0.7rem', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold' }}>Personalizada</span> 
-                        : 
-                        <span style={{ fontSize: '0.7rem', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold' }}>Integrada</span>
-                      }
-                    </div>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button onClick={() => movePage(i, 'up')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}><ArrowUp size={14} /></button>
-                        <button onClick={() => movePage(i, 'down')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}><ArrowDown size={14} /></button>
-                      </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                        <input type="checkbox" checked={page.active} onChange={e => updatePage(page.id, 'active', e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                        Visible en Menú
-                      </label>
-                      {page.isCustom && (
-                        <button onClick={() => { if(confirm('¿Eliminar esta página?')) deletePage(page.id); }} style={{ background: 'transparent', border: '1px solid #ef444455', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
-                          <Trash2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Eliminar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Nombre en el Menú</label>
-                      <input value={page.name} onChange={e => updatePage(page.id, 'name', e.target.value)} style={inputSt} />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>URL (Ruta)</label>
-                      <input value={page.path} onChange={e => updatePage(page.id, 'path', e.target.value)} style={inputSt} disabled={!page.isCustom} />
-                      {!page.isCustom && <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>La URL de las páginas integradas no se puede cambiar.</p>}
-                    </div>
-                  </div>
-                  
-                  {page.isCustom && (
-                    <div style={{ marginTop: '2rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
-                      <h4 style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent-gold)', marginBottom: '1rem', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Contenido Visual</h4>
-                      
-                      <div style={{ marginBottom: '1.2rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Título de la Página</label>
-                        <input value={page.pageTitle || ''} onChange={e => updatePage(page.id, 'pageTitle', e.target.value)} style={{ ...inputSt, fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 'bold' }} placeholder="Ej: Nuestras Ofertas" />
-                      </div>
-                      
-                      <div style={{ marginBottom: '1.2rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Subtítulo o Resumen</label>
-                        <textarea value={page.pageSubtitle || ''} onChange={e => updatePage(page.id, 'pageSubtitle', e.target.value)} rows={2} style={inputSt} />
-                      </div>
-                      
-                      <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Texto Completo (Soporta Markdown Básico)</label>
-                        <Toolbar onFormat={(t) => insertFormat(page.id, page.pageText, t, (p,v) => updatePage(p, 'pageText', v))} />
-                        <textarea value={page.pageText || ''} onChange={e => updatePage(page.id, 'pageText', e.target.value)} rows={6} style={inputSt} />
-                      </div>
-
-                      <ImageUploader label="Imagen Destacada" description="JPG/PNG. Se mostrará junto al texto." value={page.pageImage} onChange={val => updatePage(page.id, 'pageImage', val)} />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            
-            <button onClick={() => createPage()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--glass-bg)', border: '1px dashed var(--glass-border)', borderRadius: '12px', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold', width: '100%', justifyContent: 'center', transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-gold)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--glass-border)'}>
-              <Plus size={18} /> Agregar Nueva Página
-            </button>
-          </div>
-        );
 
       // ── Products ─────────────────────────────────────────────────────────
       case 'products':
@@ -2070,39 +2128,6 @@ const Admin = () => {
           </div>
         );
 
-      case 'services':
-        return (
-          <div>
-            <h3 style={sectionTitle}><Zap size={20} color="var(--accent-gold)" /> Editor de Servicios</h3>
-            <Field label="Título de la sección" path="services.title" value={content.services.title} onChange={onChange} />
-            <Field label="Subtítulo" path="services.subtitle" value={content.services.subtitle} onChange={onChange} type="textarea" />
-
-            <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {(content.services?.cards || []).map((card, i) => (
-                <div key={i} style={{ padding: '1.5rem', background: `rgba(245,158,11,0.04)`, border: '1px solid var(--glass-border)', borderRadius: '12px', borderLeft: '4px solid var(--accent-gold)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: '700', color: 'var(--accent-gold)', fontSize: '0.85rem' }}>SERVICIO #{i + 1}</span>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <button onClick={() => moveServiceCard(i, 'up')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}><ArrowUp size={14} /></button>
-                      <button onClick={() => moveServiceCard(i, 'down')} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}><ArrowDown size={14} /></button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.4rem' }}>Título</label>
-                      <input value={card.title} onChange={e => updateServiceCard(i, 'title', e.target.value)} style={inputSt} onFocus={focus} onBlur={blur} />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.4rem' }}>Descripción</label>
-                      <textarea value={card.desc} rows={2} onChange={e => updateServiceCard(i, 'desc', e.target.value)} style={inputSt} onFocus={focus} onBlur={blur} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
       case 'contact':
         return (
           <div>
@@ -2175,14 +2200,6 @@ const Admin = () => {
             <ImageUploader label="Logo / Imagen de Marca" description="PNG transparente recomendado — 200×60 px" value={images.logo} onChange={val => updateImage('logo', val)} />
             <ImageUploader label="Imagen Hero (Fondo del Inicio)" description="JPG/WebP — 1920×1080 px" value={images.heroBg} onChange={val => updateImage('heroBg', val)} />
             <ImageUploader label="Imagen Nosotros" description="JPG — 800×600 px" value={images.aboutHero} onChange={val => updateImage('aboutHero', val)} />
-            <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
-              <p style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1.5rem' }}>Imágenes del Portafolio (6 slots)</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                {(images.portfolio || [null, null, null, null, null, null]).map((img, i) => (
-                  <ImageUploader key={i} label={`Proyecto #${i + 1}`} description="JPG/PNG — 800×533 px" value={img} onChange={val => updateImage('portfolio', val, i)} />
-                ))}
-              </div>
-            </div>
           </div>
         );
 
@@ -2212,13 +2229,13 @@ const Admin = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
                       <div>
                         <h4 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.2rem' }}>{msg.name}</h4>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{msg.email} • {new Date(msg.date).toLocaleDateString()}</p>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{msg.email} • {new Date(msg.createdAt).toLocaleDateString()}</p>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         {!msg.read && (
                           <button onClick={() => markMessageRead(msg.id)} style={{ background: 'transparent', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer' }}>Marcar Leído</button>
                         )}
-                        <button onClick={() => { if(confirm('¿Eliminar mensaje de manera permanente?')) deleteMessage(msg.id); }} style={{ background: 'transparent', border: '1px solid #ef444455', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer' }}><Trash2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Eliminar</button>
+                        <button onClick={() => { Swal.fire({ title: '¿Eliminar mensaje?', text: 'Esta acción no se puede deshacer.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar', background: 'rgba(15, 23, 42, 0.95)', color: '#fff' }).then((result) => { if (result.isConfirmed) deleteMessage(msg.id); }); }} style={{ background: 'transparent', border: '1px solid #ef444455', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer' }}><Trash2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} /> Eliminar</button>
                       </div>
                     </div>
                     <p style={{ fontSize: '0.95rem', lineHeight: '1.6', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{msg.message}</p>
@@ -2229,9 +2246,239 @@ const Admin = () => {
           </div>
         );
 
+      case 'orders': {
+        const filteredOrders = orderFilter === 'all' 
+          ? orders 
+          : orders.filter(o => o.status === orderFilter);
+        
+        const handleMarkShipped = async (order) => {
+          const { value: trackingNumber } = await Swal.fire({
+            title: 'Marcar como Enviado',
+            text: `Ingresa el número de guía para el pedido #${order.id.slice(-6).toUpperCase()}`,
+            input: 'text',
+            inputPlaceholder: 'Ej: TRACK123456789',
+            background: 'rgba(15, 23, 42, 0.95)',
+            color: '#fff',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Confirmar Envío',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+              if (!value || value.trim() === '') {
+                return 'Debes ingresar un número de guía';
+              }
+            }
+          });
+
+          if (trackingNumber) {
+            try {
+              await orderApi.updateStatus(order.id, 'SHIPPED', trackingNumber.trim());
+              toast.success('Pedido marcado como enviado');
+              loadOrders(true);
+            } catch (err) {
+              console.error('Error updating order:', err);
+              toast.error('Error al actualizar el pedido');
+            }
+          }
+        };
+
+        const statusColors = {
+          PENDING: { bg: 'rgba(245,158,11,0.2)', color: '#f59e0b' },
+          PROCESSING: { bg: 'rgba(59,130,246,0.2)', color: '#3b82f6' },
+          SHIPPED: { bg: 'rgba(16,185,129,0.2)', color: '#10b981' },
+          DELIVERED: { bg: 'rgba(168,85,247,0.2)', color: '#a855f7' },
+          CANCELLED: { bg: 'rgba(239,68,68,0.2)', color: '#ef4444' },
+        };
+
+        return (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <h3 style={sectionTitle}><Package size={20} color="var(--accent-gold)" /> Gestión de Pedidos</h3>
+              <button onClick={loadOrders} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <RefreshCw size={14} /> Actualizar
+              </button>
+            </div>
+            
+            {ordersLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem' }}>
+                <div style={{ color: 'var(--text-secondary)' }}>Cargando pedidos...</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                  {['all', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map(filter => (
+                    <button key={filter} onClick={() => setOrderFilter(filter)} style={{
+                      padding: '8px 16px',
+                      background: orderFilter === filter ? 'var(--accent-gold)' : 'var(--glass-bg)',
+                      border: '1px solid',
+                      borderColor: orderFilter === filter ? 'var(--accent-gold)' : 'var(--glass-border)',
+                      borderRadius: '8px',
+                      color: orderFilter === filter ? 'white' : 'var(--text-secondary)',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      textTransform: 'capitalize'
+                    }}>
+                      {filter === 'all' ? 'Todos' : filter.toLowerCase()} 
+                      {filter !== 'all' && (
+                        <span style={{ marginLeft: '4px', opacity: 0.7 }}>
+                          ({orders.filter(o => o.status === filter).length})
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {filteredOrders.length === 0 ? (
+                  <div style={{ padding: '3rem', textAlign: 'center', background: 'var(--glass-bg)', border: '1px dashed var(--glass-border)', borderRadius: '12px' }}>
+                    <Package size={48} color="var(--glass-border)" style={{ marginBottom: '1rem' }} />
+                    <p style={{ color: 'var(--text-secondary)' }}>No hay pedidos {orderFilter !== 'all' ? `con estado ${orderFilter.toLowerCase()}` : 'registrados'}</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {filteredOrders.map(order => (
+                      <div key={order.id} style={{ 
+                        padding: '1.5rem', 
+                        background: 'var(--glass-bg)', 
+                        border: '1px solid var(--glass-border)', 
+                        borderRadius: '12px',
+                        borderLeft: `3px solid ${statusColors[order.status]?.color || '#6b7280'}`
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+                          <div>
+                            <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: '700', marginBottom: '4px' }}>
+                              Pedido #{order.id.slice(-6).toUpperCase()}
+                            </h4>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Fecha no disponible'}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ 
+                              fontSize: '0.7rem', 
+                              fontWeight: 'bold',
+                              padding: '4px 10px',
+                              borderRadius: '4px',
+                              background: statusColors[order.status]?.bg || 'rgba(107,114,128,0.2)',
+                              color: statusColors[order.status]?.color || '#6b7280',
+                              textTransform: 'uppercase'
+                            }}>
+                              {order.status}
+                            </span>
+                            {order.status === 'PENDING' || order.status === 'PROCESSING' ? (
+                              <button 
+                                onClick={() => handleMarkShipped(order)}
+                                style={{ 
+                                  padding: '6px 12px', 
+                                  background: 'rgba(16,185,129,0.1)', 
+                                  border: '1px solid rgba(16,185,129,0.3)', 
+                                  borderRadius: '6px', 
+                                  color: '#10b981', 
+                                  cursor: 'pointer', 
+                                  fontSize: '0.75rem', 
+                                  fontWeight: '600',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <Truck size={12} /> Marcar Enviado
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                          <div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '2px' }}>Cliente</p>
+                            <p style={{ fontSize: '0.85rem', fontWeight: '500' }}>{order.customerName || 'N/A'}</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{order.customerEmail || order.email || 'N/A'}</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{order.customerPhone || order.phone || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '2px' }}>Dirección</p>
+                            <p style={{ fontSize: '0.85rem' }}>{order.address || 'N/A'}</p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              {order.city || ''}{order.state ? `, ${order.state}` : ''} {order.zipCode || ''}
+                            </p>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '2px' }}>Total</p>
+                            <p style={{ fontSize: '1.1rem', fontWeight: '700', color: '#10b981' }}>
+                              ${order.total ? order.total.toLocaleString('es-MX') : '0.00'}
+                            </p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              Subtotal: ${order.subtotal ? order.subtotal.toLocaleString('es-MX') : '0.00'} | Envío: ${order.shipping || 0}
+                            </p>
+                          </div>
+                        </div>
+
+                        {order.trackingNumber && (
+                          <div style={{ 
+                            padding: '0.75rem 1rem', 
+                            background: 'rgba(16,185,129,0.1)', 
+                            border: '1px solid rgba(16,185,129,0.2)', 
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <Truck size={14} color="#10b981" />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Número de Guía:</span>
+                            <code style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '600' }}>{order.trackingNumber}</code>
+                          </div>
+                        )}
+
+                        {order.items && order.items.length > 0 && (
+                          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Productos:</p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              {order.items.map((item, idx) => (
+                                <div key={idx} style={{ fontSize: '0.85rem', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between' }}>
+                                  <span>{item.quantity}x {item.name}</span>
+                                  <span style={{ fontWeight: '600' }}>${(item.price * item.quantity).toLocaleString('es-MX')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      }
+
       default: return null;
     }
   };
+
+  if (isLoggingOut) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          border: '4px solid var(--bg-tertiary)',
+          borderTop: '4px solid var(--accent-gold)',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Cerrando sesión...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -2249,7 +2496,9 @@ const Admin = () => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '0.8rem', padding: '0 0.3rem' }}>Secciones</p>
 
         <ul style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-          {sections.map(s => (
+          {sections.map(s => {
+            const pendingCount = s.id === 'orders' ? orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length : 0;
+            return (
             <li key={s.id} onClick={() => setActive(s.id)} style={{
               padding: '9px 12px', borderRadius: '7px',
               background: active === s.id ? 'rgba(245,158,11,0.15)' : 'transparent',
@@ -2264,8 +2513,13 @@ const Admin = () => {
               onMouseLeave={e => { if (active !== s.id) e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
               {s.icon} {s.label}
+              {pendingCount > 0 && (
+                <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>
+                  {pendingCount}
+                </span>
+              )}
             </li>
-          ))}
+          )})}
         </ul>
 
         <div style={{ padding: '0.9rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem' }}>
@@ -2276,7 +2530,13 @@ const Admin = () => {
               <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Conectado</p>
             </div>
           </div>
-          <button onClick={logout} title="Cerrar Sesión" style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+          <button onClick={() => {
+            setIsLoggingOut(true);
+            setTimeout(() => {
+              logout();
+              navigate('/login', { replace: true });
+            }, 100);
+          }} title="Cerrar Sesión" style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
              Salir
           </button>
         </div>

@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { CartProvider } from './CartContext';
 import { OrderProvider } from './OrderContext';
-import { authApi } from '../services/api';
+import { authApi, contactApi } from '../services/api';
 
 const AUTH_KEY = 'is_authenticated';
 const ADMIN_PASS_KEY = 'admin_password';
@@ -319,6 +318,7 @@ export const SiteProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 
   useEffect(() => { applyTheme(theme); }, [theme]);
+  useEffect(() => { loadMessages(); }, []);
 
   const updateContent = (path, value) => {
     setContent(prev => {
@@ -482,29 +482,45 @@ export const SiteProvider = ({ children }) => {
     return false;
   };
 
-  const addMessage = (msg) => {
-    const newMsg = { ...msg, id: Date.now(), date: new Date().toISOString(), read: false };
-    setInbox(prev => {
-      const updated = [newMsg, ...prev];
-      localStorage.setItem(INBOX_KEY, JSON.stringify(updated));
-      return updated;
-    });
+  const addMessage = async (msg) => {
+    try {
+      const newMsg = await contactApi.send(msg);
+      setInbox(prev => [{ ...newMsg, createdAt: newMsg.createdAt }, ...prev]);
+      return true;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      return false;
+    }
   };
 
-  const markMessageRead = (id) => {
-    setInbox(prev => {
-      const updated = prev.map(m => m.id === id ? { ...m, read: true } : m);
-      localStorage.setItem(INBOX_KEY, JSON.stringify(updated));
-      return updated;
-    });
+  const markMessageRead = async (id) => {
+    try {
+      await contactApi.markRead(id);
+      setInbox(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
   };
 
-  const deleteMessage = (id) => {
-    setInbox(prev => {
-      const updated = prev.filter(m => m.id !== id);
-      localStorage.setItem(INBOX_KEY, JSON.stringify(updated));
-      return updated;
-    });
+  const deleteMessage = async (id) => {
+    try {
+      await contactApi.delete(id);
+      setInbox(prev => prev.filter(m => m.id !== id));
+    } catch (error) {
+      console.error('Error deleting message:', error);
+    }
+  };
+
+  const loadMessages = async () => {
+    try {
+      const messages = await contactApi.getAll();
+      setInbox(messages);
+      localStorage.setItem(INBOX_KEY, JSON.stringify(messages));
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      const saved = localStorage.getItem(INBOX_KEY);
+      if (saved) setInbox(JSON.parse(saved));
+    }
   };
 
   const getActiveCampaign = () => {
@@ -625,18 +641,16 @@ export const SiteProvider = ({ children }) => {
       pages, createPage, updatePage, deletePage, movePage,
       products, createProduct, updateProduct, deleteProduct, moveProduct,
       analytics, trackAnalytics,
-      inbox, addMessage, markMessageRead, deleteMessage,
+      inbox, addMessage, markMessageRead, deleteMessage, loadMessages,
       campaigns, createCampaign, updateCampaign, deleteCampaign,
       getActiveCampaign, calculateDiscountedPrice,
       isAuthenticated, login, logout, changePassword,
       saveContent, resetContent, saveStatus, loadingDb,
       user,
     }}>
-      <CartProvider user={user}>
-        <OrderProvider>
-          {children}
-        </OrderProvider>
-      </CartProvider>
+      <OrderProvider>
+        {children}
+      </OrderProvider>
     </SiteContext.Provider>
   );
 };

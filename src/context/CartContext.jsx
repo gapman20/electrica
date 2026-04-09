@@ -1,92 +1,123 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-
-const CART_STORAGE_KEY = 'tcg_cart';
+import { cartApi } from '../services/api';
+import { useUser } from './UserContext';
 
 const CartContext = createContext(null);
 
-export const CartProvider = ({ children, user }) => {
-  const [items, setItems] = useState(() => {
-    try {
-      const saved = localStorage.getItem(CART_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+const normalizeCartItem = (dbItem) => {
+  const item = dbItem.item || dbItem.card || dbItem.product || dbItem;
+  return {
+    cartId: dbItem.id,
+    cardId: dbItem.cardId,
+    productId: dbItem.productId,
+    name: item.name || 'Sin nombre',
+    price: parseFloat(item.price || 0),
+    quantity: dbItem.quantity || 1,
+    imageUrl: item.imageUrl,
+    stock: item.stock,
+    game: item.game?.name || item.game,
+    rarity: item.rarity,
+  };
+};
+
+export const CartProvider = ({ children }) => {
+  const [items, setItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [deliveryOption, setDeliveryOption] = useState('pickup');
+  const { user, logout } = useUser();
+
+  const loadCart = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const dbItems = await cartApi.get();
+      setItems(Array.isArray(dbItems) ? dbItems.map(normalizeCartItem) : []);
+    } catch (error) {
+      console.error('Error loading cart:', error);
+      setItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadCart();
+    } else {
+      setItems([]);
+      setIsLoading(false);
+    }
+  }, [user, loadCart]);
 
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const shippingCost = deliveryOption === 'delivery' ? 150 : 0;
+  const total = subtotal + shippingCost;
 
-  useEffect(() => {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+  const addItem = useCallback(async (item) => {
+    if (!user) return;
 
-  const addItem = useCallback((card) => {
-    setItems(prev => {
-      const existing = prev.find(item => item.cardId === card.id);
-      let updated;
-      if (existing) {
-        updated = prev.map(item =>
-          item.cardId === card.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+    const stock = item.stock || 999;
+    if (stock === 0) return;
+
+    try {
+      const dbItem = await cartApi.add({ 
+        cardId: item.rarity ? item.id : null, 
+        productId: !item.rarity ? item.id : null 
+      });
+      const normalized = normalizeCartItem(dbItem);
+      setItems(prev => {
+        const exists = prev.some(i => 
+          (normalized.cardId && i.cardId === normalized.cardId) ||
+          (normalized.productId && i.productId === normalized.productId)
         );
-      } else {
-        updated = [...prev, {
-          cardId: card.id,
-          name: card.name,
-          price: card.price,
-          quantity: 1,
-          imageUrl: card.imageUrl,
-          stock: card.stock,
-          game: card.game,
-          rarity: card.rarity,
-        }];
-      }
-      return updated;
-    });
-  }, []);
+        if (exists) return prev;
+        return [...prev, normalized];
+      });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    }
+  }, [user]);
 
-  const removeItem = useCallback((cardId) => {
-    setItems(prev => {
-      const updated = prev.filter(item => item.cardId !== cardId);
-      return updated;
-    });
-  }, []);
+  const removeItem = useCallback(async (cartId) => {
+    if (!user) return;
 
-  const updateQuantity = useCallback((cardId, quantity) => {
+    try {
+      await cartApi.remove(cartId);
+      setItems(prev => prev.filter(item => item.cartId !== cartId));
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+    }
+  }, [user]);
+
+  const updateQuantity = useCallback(async (cartId, quantity) => {
+    if (!user) return;
+
     if (quantity < 1) {
-      removeItem(cardId);
+      removeItem(cartId);
       return;
     }
-    setItems(prev => {
-      const updated = prev.map(item =>
-        item.cardId === cardId ? { ...item, quantity } : item
-      );
-      return updated;
-    });
-  }, [removeItem]);
 
-  const clearCart = useCallback(() => {
-    setItems([]);
-    localStorage.removeItem(CART_STORAGE_KEY);
-  }, []);
+    try {
+      await cartApi.update(cartId, quantity);
+      setItems(prev => prev.map(item =>
+        item.cartId === cartId ? { ...item, quantity } : item
+      ));
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    }
+  }, [user, removeItem]);
 
-  const mergeCarts = useCallback(async (localItems, firebaseItems) => {
-    const merged = [...firebaseItems];
-    localItems.forEach(localItem => {
-      const existing = merged.find(item => item.cardId === localItem.cardId);
-      if (existing) {
-        existing.quantity += localItem.quantity;
-      } else {
-        merged.push(localItem);
-      }
-    });
-    setItems(merged);
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(merged));
-    return merged;
-  }, []);
+  const clearCart = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      await cartApi.clear();
+      setItems([]);
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+    }
+  }, [user]);
 
   const openCart = () => setIsCartOpen(true);
   const closeCart = () => setIsCartOpen(false);
@@ -96,8 +127,13 @@ export const CartProvider = ({ children, user }) => {
     <CartContext.Provider value={{
       items,
       subtotal,
+      shippingCost,
+      total,
       itemCount,
+      deliveryOption,
+      setDeliveryOption,
       isCartOpen,
+      isLoading,
       openCart,
       closeCart,
       toggleCart,
@@ -105,7 +141,7 @@ export const CartProvider = ({ children, user }) => {
       removeItem,
       updateQuantity,
       clearCart,
-      mergeCarts,
+      loadCart,
     }}>
       {children}
     </CartContext.Provider>

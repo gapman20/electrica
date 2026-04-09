@@ -2,20 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Shield, Truck, CreditCard, Package, ChevronLeft, ChevronRight,
-  Zap, Star, Clock, Tag, Sparkles, ShoppingCart, Heart
+  Zap, Star, Clock, Tag, Sparkles, ArrowRight
 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
-import { getGameValue } from '../services/api';
+import { getGameValue, productApi, cardApi } from '../services/api';
+import ProductCard from '../components/ProductCard';
 
 const formatPrice = (value) => {
-  if (typeof value === 'number') {
-    return `$${value.toLocaleString('es-MX')}`;
-  }
-  return value;
+  if (!value) return '';
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  if (isNaN(num)) return value;
+  return `$${num.toLocaleString('es-MX')} MXN`;
 };
 
 const GameCard = ({ name, icon, color }) => (
@@ -28,96 +29,6 @@ const GameCard = ({ name, icon, color }) => (
     <span>{name}</span>
   </Link>
 );
-
-const ProductCard = ({ product, onAddToCart }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const { isInWishlist, toggleItem } = useWishlist();
-  const toast = useToast();
-  
-  const hasDiscount = product.originalPrice && product.originalPrice !== product.price;
-  const badgeClass = product.badge ? product.badge.toLowerCase().replace(/[^a-z]/g, '') : '';
-  const wishlisted = isInWishlist(product.id);
-  
-  const handleToggleWishlist = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const wasAdded = toggleItem(product);
-    if (wasAdded) {
-      toast.success(`${product.name} añadido a favoritos`);
-    } else {
-      toast.info(`${product.name} eliminado de favoritos`);
-    }
-  };
-  
-  return (
-    <div 
-      className="tcg-product-card"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div className="product-image-container">
-        {product.image ? (
-          <img src={product.image} alt={product.name} className="product-image" />
-        ) : (
-          <div className="product-placeholder">
-            <Package size={48} color="var(--text-secondary)" />
-          </div>
-        )}
-        
-        {product.badge && (
-          <span className={`product-badge badge-${badgeClass}`}>
-            {product.badge}
-          </span>
-        )}
-        
-        {hasDiscount && (
-          <span className="product-badge badge-oferta">
-            -{Math.round((1 - product.price / product.originalPrice) * 100)}%
-          </span>
-        )}
-        
-        <div className={`product-actions ${isHovered || window.innerWidth < 768 ? 'visible' : ''}`}>
-          <button 
-            className="action-btn wishlist-btn"
-            onClick={handleToggleWishlist}
-          >
-            <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
-          </button>
-          <button className="action-btn cart-btn" onClick={() => onAddToCart(product)}>
-            <ShoppingCart size={20} />
-          </button>
-        </div>
-        
-        {product.stock === 0 && (
-          <div className="product-soldout-overlay">
-            <span>Agotado</span>
-          </div>
-        )}
-      </div>
-      
-      <div className="product-info">
-        <div className="product-tags">
-          {product.game && <span className="product-tag">{getGameValue(product.game)}</span>}
-          {product.set && <span className="product-tag">{product.set}</span>}
-        </div>
-        <h3 className="product-name">{product.name}</h3>
-        <div className="product-price">
-          <span className="price-current">{product.price}</span>
-          {hasDiscount && (
-            <span className="price-original">{product.originalPrice}</span>
-          )}
-        </div>
-        <button 
-          className="add-to-cart-btn"
-          onClick={() => onAddToCart(product)}
-          disabled={product.stock === 0}
-        >
-          {product.stock === 0 ? 'Agotado' : 'Agregar al carrito'}
-        </button>
-      </div>
-    </div>
-  );
-};
 
 const CountdownTimer = ({ targetDate }) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -160,13 +71,6 @@ const CountdownTimer = ({ targetDate }) => {
   );
 };
 
-const ArrowRight = ({ size }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-    <polyline points="12 5 19 12 12 19"></polyline>
-  </svg>
-);
-
 const Home = () => {
   const { addItem } = useCart ? useCart() : {};
   const { getActiveCampaign: getCampaign } = useSite();
@@ -174,6 +78,9 @@ const Home = () => {
   const [email, setEmail] = useState('');
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [offers, setOffers] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const carouselRef = useRef(null);
   
   const activeCampaign = getCampaign ? getCampaign() : null;
@@ -208,24 +115,6 @@ const Home = () => {
     { name: 'Dragon Ball', icon: '🟠', color: '#f97316' }
   ];
 
-  const featuredProducts = [
-    { id: '1', name: 'Charizard ex Premium Collection', price: '$2,999', game: 'Pokémon', set: 'Phantasmal Flames', badge: 'Nuevo', image: null, stock: 5 },
-    { id: '2', name: 'Elite Trainer Box - Mega Evolution', price: '$1,590', game: 'Pokémon', set: 'Mega Evolution', badge: 'Oferta', originalPrice: '$1,800', image: null, stock: 3 },
-    { id: '3', name: 'Booster Box Prismatic Evolutions', price: '$5,800', game: 'Pokémon', set: 'Scarlet & Violet', badge: 'Preventa', image: null, stock: 10 },
-    { id: '4', name: 'Deck Commander Marvel Super Heroes', price: '$890', game: 'Magic', set: 'Marvel', badge: 'Nuevo', image: null, stock: 8 },
-    { id: '5', name: 'Mega Garchomp ex Collection', price: '$4,500', game: 'Pokémon', set: 'Destined Rivals', badge: 'Agotado', image: null, stock: 0 },
-    { id: '6', name: 'Digimon BT-15 Booster Box', price: '$2,200', game: 'Digimon', set: 'BT-15', badge: 'Nuevo', image: null, stock: 4 },
-    { id: '7', name: 'Dragon Ball Super Starter Deck', price: '$450', game: 'Dragon Ball', set: 'Series', image: null, stock: 6 },
-    { id: '8', name: 'One Piece OP-10 Booster Box', price: '$1,800', game: 'One Piece', set: 'Royal Blood', badge: 'Preventa', image: null, stock: 7 }
-  ];
-
-  const offers = [
-    { id: 'o1', name: 'Micas Ultra Pro (100 pz)', price: '$38', originalPrice: '$70', image: null, stock: 20 },
-    { id: 'o2', name: 'Prismatic Evolutions Poster Collection', price: '$299', originalPrice: '$720', image: null, stock: 15 },
-    { id: 'o3', name: 'Journey Together Build & Battle', price: '$440', originalPrice: '$840', image: null, stock: 8 },
-    { id: 'o4', name: 'Surging Sparks Booster Box', price: '$4,200', originalPrice: '$6,200', image: null, stock: 5 }
-  ];
-
   const trustBadges = [
     { icon: <Shield size={28} />, title: 'Pago Seguro', desc: 'SSL 256-bit encryption' },
     { icon: <Truck size={28} />, title: 'Envío 24-48h', desc: 'En empaques protegidos' },
@@ -240,13 +129,52 @@ const Home = () => {
     return () => clearInterval(timer);
   }, [banners.length]);
 
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoadingProducts(true);
+      try {
+        const [productsData, cardsData] = await Promise.all([
+          productApi.getAll(),
+          cardApi.getAll()
+        ]);
+        
+        const formattedProducts = productsData.slice(0, 4).map(p => ({
+          ...p,
+          price: formatPrice(p.price),
+          originalPrice: p.originalPrice ? formatPrice(p.originalPrice) : null,
+          image: p.imageUrl || null
+        }));
+        
+        const formattedOffers = productsData
+          .filter(p => p.discountPercent > 0)
+          .slice(0, 4)
+          .map(p => ({
+            ...p,
+            price: formatPrice(p.price),
+            originalPrice: p.originalPrice ? formatPrice(p.originalPrice) : null,
+            image: p.imageUrl || null
+          }));
+        
+        setFeaturedProducts(formattedProducts);
+        setOffers(formattedOffers);
+      } catch (error) {
+        console.error('Error loading products:', error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    
+    fetchProducts();
+  }, []);
+
   const handleAddToCart = (product) => {
     addItem({
       id: product.id,
       name: product.name,
       price: product.price,
       image: product.image,
-      game: product.game
+      game: product.game,
+      stock: product.stock
     });
   };
 
@@ -369,9 +297,15 @@ const Home = () => {
           </div>
           
           <div className="products-grid">
-            {featuredProducts.slice(0, 4).map(product => (
-              <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
-            ))}
+            {loadingProducts ? (
+              <p>Cargando productos...</p>
+            ) : featuredProducts.length > 0 ? (
+              featuredProducts.slice(0, 4).map(product => (
+                <ProductCard key={product.id} item={product} type="product" />
+              ))
+            ) : (
+              <p>No hay productos disponibles</p>
+            )}
           </div>
         </div>
       </section>
@@ -417,9 +351,15 @@ const Home = () => {
           </div>
           
           <div className="offers-grid">
-            {offers.map(offer => (
-              <ProductCard key={offer.id} product={{ ...offer, badge: 'Oferta' }} onAddToCart={handleAddToCart} />
-            ))}
+            {loadingProducts ? (
+              <p>Cargando ofertas...</p>
+            ) : offers.length > 0 ? (
+              offers.map(offer => (
+                <ProductCard key={offer.id} item={{ ...offer, badge: 'Oferta' }} type="product" />
+              ))
+            ) : (
+              <p>No hay ofertas disponibles</p>
+            )}
           </div>
         </div>
       </section>

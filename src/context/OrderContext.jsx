@@ -72,10 +72,10 @@ export const OrderProvider = ({ children }) => {
     }
   }, []);
 
-  const updateOrderStatus = useCallback(async (orderId, status) => {
+  const updateOrderStatus = useCallback(async (orderId, status, trackingNumber) => {
     setLoading(true);
     try {
-      const order = await orderApi.updateStatus(orderId, status);
+      const order = await orderApi.updateStatus(orderId, status, trackingNumber);
       if (currentOrder?.id === orderId) {
         setCurrentOrder(order);
       }

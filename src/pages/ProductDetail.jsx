@@ -28,7 +28,7 @@ const RARITY_COLORS = {
   'alternate-art': '#06b6d4'
 };
 
-const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')}`;
+const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -141,7 +141,8 @@ const ProductDetail = () => {
       game: product.game,
       rarity: product.rarity,
       set: product.set,
-      stock: product.stock
+      stock: product.stock,
+      type: isSealed ? 'product' : 'card'
     });
     if (wasAdded) {
       toast.success(`${product.name} añadido a favoritos`);
@@ -312,8 +313,8 @@ const ProductDetail = () => {
           <button onClick={handleToggleWishlist} className="wishlist-btn">
             <Heart 
               size={22} 
-              fill={isInWishlist(product.id) ? '#ef4444' : 'none'}
-              color={isInWishlist(product.id) ? '#ef4444' : 'var(--text-secondary)'} 
+              fill={isInWishlist(product.id, isSealed ? 'product' : 'card') ? '#ef4444' : 'none'}
+              color={isInWishlist(product.id, isSealed ? 'product' : 'card') ? '#ef4444' : 'var(--text-secondary)'} 
             />
           </button>
         </div>

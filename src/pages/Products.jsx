@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, ShoppingCart, Heart, Search, SlidersHorizontal, X, Grid, List } from 'lucide-react';
+import { Package, ShoppingCart, Heart, Search, SlidersHorizontal, X, Grid, List, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { productApi } from '../services/api';
-
-const SELLADOS_KEY = 'tcg_sellados';
+import ProductCard from '../components/ProductCard';
 
 const GAMES = [
   { id: 'all', name: 'Todos', icon: '🎯', color: '#6366f1' },
@@ -40,10 +39,10 @@ const PRODUCT_TYPES = [
 ];
 
 const formatPrice = (price) => {
-  if (typeof price === 'number') {
-    return `$${price.toLocaleString('es-MX')}`;
-  }
-  return price || '';
+  if (!price) return '';
+  const num = typeof price === 'number' ? price : parseFloat(price);
+  if (isNaN(num)) return price || '';
+  return `$${num.toLocaleString('es-MX')} MXN`;
 };
 
 const normalizeSealedProduct = (product) => ({
@@ -57,39 +56,35 @@ const normalizeSealedProduct = (product) => ({
   discountPercent: product.discountPercent || 0
 });
 
-const sampleSealedProducts = [
-  { id: 's1', name: 'Charizard ex Ultra Premium Collection', price: 2990, priceDisplay: '$2,990', game: 'pokemon', set: 'Phantasmal Flames', type: 'premium', badge: 'Nuevo', image: null, stock: 5 },
-  { id: 's2', name: 'Mega Evolution Elite Trainer Box', price: 1590, priceDisplay: '$1,590', game: 'pokemon', set: 'Mega Evolution', type: 'elite-trainer', badge: 'Oferta', originalPrice: 1800, image: null, stock: 3 },
-  { id: 's3', name: 'Prismatic Evolutions Booster Box', price: 5800, priceDisplay: '$5,800', game: 'pokemon', set: 'Scarlet & Violet', type: 'booster-box', badge: 'Preventa', image: null, stock: 10 },
-  { id: 's4', name: 'Marvel Super Heroes Commander Deck', price: 890, priceDisplay: '$890', game: 'magic', set: 'Marvel', type: 'deck', badge: 'Nuevo', image: null, stock: 8 },
-  { id: 's5', name: 'Destined Rivals Booster Bundle', price: 950, priceDisplay: '$950', game: 'pokemon', set: 'Scarlet & Violet', type: 'bundle', image: null, stock: 12 },
-  { id: 's6', name: 'Digimon BT-15 Booster Box', price: 2200, priceDisplay: '$2,200', game: 'digimon', set: 'BT-15', type: 'booster-box', badge: 'Nuevo', image: null, stock: 4 },
-  { id: 's7', name: 'Dragon Ball Super Starter Deck', price: 450, priceDisplay: '$450', game: 'dragonball', set: 'Series 1', type: 'starter', image: null, stock: 6 },
-  { id: 's8', name: 'One Piece OP-10 Booster Box', price: 1800, priceDisplay: '$1,800', game: 'onepiece', set: 'Royal Blood', type: 'booster-box', badge: 'Preventa', image: null, stock: 7 },
-  { id: 's9', name: 'Surging Sparks Booster Box', price: 4200, priceDisplay: '$4,200', game: 'pokemon', set: 'Scarlet & Violet', type: 'booster-box', originalPrice: 6200, image: null, stock: 5 },
-  { id: 's10', name: 'Yu-Gi-Oh! Structure Deck', price: 380, priceDisplay: '$380', game: 'yugioh', set: 'Structure Deck', type: 'deck', image: null, stock: 12 },
-  { id: 's11', name: 'Phantasmal Flames 3-Pack Blister', price: 80, priceDisplay: '$80', game: 'pokemon', set: 'Mega Evolution', type: 'blister', originalPrice: 120, image: null, stock: 25 },
-  { id: 's12', name: 'Lorcana Booster Box', price: 2400, priceDisplay: '$2,400', game: 'magic', set: 'Disney Lorcana', type: 'booster-box', badge: 'Nuevo', image: null, stock: 3 }
-];
-
 const SealedProductCard = ({ product, onAddToCart }) => {
   const [isHovered, setIsHovered] = useState(false);
   const { isInWishlist, toggleItem } = useWishlist();
   const toast = useToast();
+  const isLoggedIn = !!localStorage.getItem('tcg_user');
+  const [addedToCart, setAddedToCart] = useState(false);
   
   const hasDiscount = product.discountPercent > 0;
   const badgeClass = product.badge ? product.badge.toLowerCase().replace(/[^a-z]/g, '') : '';
-  const wishlisted = isInWishlist(product.id);
+  const wishlisted = isInWishlist(product.id, 'product');
   
   const handleToggleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const wasAdded = toggleItem(product);
+    const wasAdded = toggleItem({ ...product, type: 'product' });
     if (wasAdded) {
       toast.success(`${product.name} añadido a favoritos`);
     } else {
       toast.info(`${product.name} eliminado de favoritos`);
     }
+  };
+
+  const handleAddToCart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (product.stock === 0) return;
+    onAddToCart(product);
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
   };
   
   return (
@@ -120,15 +115,14 @@ const SealedProductCard = ({ product, onAddToCart }) => {
         )}
         
         <div className={`product-actions ${isHovered || window.innerWidth < 768 ? 'visible' : ''}`}>
-          <button 
-            className="action-btn wishlist-btn"
-            onClick={handleToggleWishlist}
-          >
-            <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
-          </button>
-          <button className="action-btn cart-btn" onClick={() => onAddToCart(product)}>
-            <ShoppingCart size={20} />
-          </button>
+          {isLoggedIn && (
+            <button 
+              className="action-btn wishlist-btn"
+              onClick={handleToggleWishlist}
+            >
+              <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
+            </button>
+          )}
         </div>
         
         {product.stock === 0 && (
@@ -149,10 +143,14 @@ const SealedProductCard = ({ product, onAddToCart }) => {
         </div>
         <button 
           className="add-to-cart-btn"
-          onClick={() => onAddToCart(product)}
+          onClick={handleAddToCart}
           disabled={product.stock === 0}
+          style={{
+            background: addedToCart ? '#10b981' : undefined,
+            transition: 'all 0.3s ease'
+          }}
         >
-          {product.stock === 0 ? 'Agotado' : 'Agregar al carrito'}
+          {product.stock === 0 ? 'Agotado' : addedToCart ? <><Check size={16} /> Agregado</> : 'Agregar al carrito'}
         </button>
       </div>
     </div>
@@ -162,7 +160,7 @@ const SealedProductCard = ({ product, onAddToCart }) => {
 const Products = () => {
   const { addItem, itemCount } = useCart();
   
-  const [productsData, setProductsData] = useState(sampleSealedProducts);
+  const [productsData, setProductsData] = useState([]);
   const [selectedGame, setSelectedGame] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [sortBy, setSortBy] = useState('name-asc');
@@ -170,51 +168,30 @@ const Products = () => {
   const [viewMode, setViewMode] = useState('grid');
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const loadProducts = async () => {
       setLoading(true);
+      setError(false);
       try {
         const products = await productApi.getAll();
-        if (products && products.length > 0) {
-          setProductsData(products.map(product => ({
-            ...product,
-            image: product.imageUrl,
-            game: typeof product.game === 'object' ? product.game.name : product.game,
-            priceDisplay: formatPrice(product.price)
-          })));
-        }
+        setProductsData(products.map(product => ({
+          ...product,
+          image: product.imageUrl,
+          game: typeof product.game === 'object' ? product.game.name : product.game,
+          priceDisplay: formatPrice(product.price)
+        })));
       } catch (e) {
         console.error('Error loading products from API:', e);
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
 
     loadProducts();
-    
-    const handleStorageChange = (e) => {
-      if (e.key === SELLADOS_KEY) {
-        try {
-          const stored = localStorage.getItem(SELLADOS_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setProductsData(parsed.map(normalizeSealedProduct));
-            }
-          }
-        } catch (err) {
-          console.error('Error loading sellados from localStorage:', err);
-        }
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [SELLADOS_KEY]);
+  }, []);
 
   const products = useMemo(() => {
     let filtered = [...productsData];
@@ -256,7 +233,8 @@ const Products = () => {
       name: product.name,
       price: product.price,
       image: product.image,
-      game: product.game
+      game: product.game,
+      stock: product.stock
     });
   };
   
@@ -361,24 +339,35 @@ const Products = () => {
         </div>
         
         {/* Products Grid */}
-        {products.length > 0 ? (
+        {loading ? (
+          <div className="catalog-empty">
+            <span className="empty-icon">⏳</span>
+            <h3>Cargando productos...</h3>
+          </div>
+        ) : error ? (
+          <div className="catalog-empty">
+            <span className="empty-icon">⚠️</span>
+            <h3>No se pudo cargar los productos</h3>
+            <p>Revisa tu conexión e intenta de nuevo</p>
+            <button className="btn-primary" onClick={() => window.location.reload()}>
+              Reintentar
+            </button>
+          </div>
+        ) : products.length > 0 ? (
           <div className={`catalog-products ${viewMode}`}>
             {products.map(product => (
-              <SealedProductCard 
+              <ProductCard 
                 key={product.id} 
-                product={product} 
-                onAddToCart={handleAddToCart} 
+                item={product} 
+                type="product"
               />
             ))}
           </div>
         ) : (
           <div className="catalog-empty">
             <span className="empty-icon">📦</span>
-            <h3>No se encontraron productos</h3>
-            <p>Intenta con otros filtros</p>
-            <button className="btn-primary" onClick={clearFilters}>
-              Limpiar filtros
-            </button>
+            <h3>No hay productos disponibles</h3>
+            <p>Revisa el backend y la base de datos</p>
           </div>
         )}
       </div>
