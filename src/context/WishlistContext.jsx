@@ -17,7 +17,7 @@ export const WishlistProvider = ({ children }) => {
   }, [isLoggedIn]);
   
   const fetchWishlist = useCallback(async () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
     if (!token) {
       setItems([]);
       setLoading(false);
@@ -63,7 +63,7 @@ export const WishlistProvider = ({ children }) => {
     }
     prevUserId.current = currentUserId;
     
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
     if (token && currentUserId) {
       fetchWishlist();
     } else {

@@ -68,7 +68,8 @@ const MyAccount = () => {
     setLoading(true);
     
     try {
-      updateUser(formData);
+      const response = await authApi.updateProfile(formData);
+      updateUser(response);
       setSaved(true);
       
       Swal.fire({
@@ -135,18 +136,6 @@ const MyAccount = () => {
           animation: 'spin 1s linear infinite'
         }}></div>
         <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Cerrando sesión...</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="page" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-        <h2>Debes iniciar sesión para ver tu cuenta</h2>
-        <Link to="/login" className="btn-primary" style={{ display: 'inline-flex', marginTop: '1rem' }}>
-          Iniciar Sesión
-        </Link>
       </div>
     );
   }

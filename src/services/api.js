@@ -12,7 +12,7 @@ async function apiRequest(endpoint, options = {}) {
     'Content-Type': 'application/json',
   };
 
-  const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+  const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`;
   }
@@ -241,6 +241,14 @@ export const authApi = {
     return data.message === 'Password updated successfully';
   },
 
+  recoverPassword: async (email) => {
+    return await apiRequest('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
+  },
+
+  resetPassword: async (email, code, newPassword) => {
+    return await apiRequest('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, code, newPassword }) });
+  },
+
   isAuthenticated: () => {
     return localStorage.getItem('is_authenticated') === 'true';
   },
@@ -255,12 +263,12 @@ export const authApi = {
       const data = await apiRequest('/users/profile', { method: 'PUT', body: JSON.stringify(profileData) });
       if (data.id) {
         localStorage.setItem('tcg_user', JSON.stringify(data));
-        return { success: true, user: data };
+        return data;
       }
-      return { success: false, error: data.error };
+      throw new Error(data.error || 'Error al actualizar');
     } catch (error) {
       console.error('Update profile error:', error);
-      return { success: false, error: error.message };
+      throw error;
     }
   },
 };

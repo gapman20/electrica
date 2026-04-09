@@ -27,6 +27,7 @@ const CustomPage = React.lazy(() => import('./pages/CustomPage'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register'));
 const MyAccount = React.lazy(() => import('./pages/MyAccount'));
+const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
 
 // Store Pages
 const Catalog = React.lazy(() => import('./pages/Catalog'));
@@ -89,6 +90,7 @@ const AppContent = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/registro" element={<Register />} />
             <Route path="/mi-cuenta" element={<MyAccount />} />
+            <Route path="/recuperar-password" element={<ForgotPassword />} />
             
             {/* Dynamic Pages from SiteContext */}
             {pages.filter(p => p.active).map(page => (

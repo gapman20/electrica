@@ -31,7 +31,7 @@ const Login = () => {
               .then(res => res.json())
               .then(data => {
                 if (data.token) {
-                  localStorage.setItem('token', data.token);
+                  localStorage.setItem('auth_token', data.token);
                   localStorage.setItem('tcg_user', JSON.stringify(data.user));
                   setUser(data.user);
                   navigate('/');
@@ -214,6 +214,12 @@ const Login = () => {
 
         <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           ¿No tienes cuenta? <Link to="/registro" style={{ color: 'var(--accent-gold)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><UserPlus size={14} /> Regístrate</Link>
+        </p>
+
+        <p style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+          <Link to="/recuperar-password" style={{ color: 'var(--accent-gold)', textDecoration: 'none' }}>
+            ¿Olvidaste tu contraseña?
+          </Link>
         </p>
       </div>
     </div>

@@ -131,16 +131,7 @@ const ProductCard = ({ item, type = 'product' }) => {
           </div>
         )}
         
-        <div className={`product-actions ${addedToCart ? 'visible' : ''}`}>
-          <button 
-            className={`action-btn cart-btn ${addedToCart ? 'added' : ''}`}
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            title={addedToCart ? 'Agregado' : 'Agregar al carrito'}
-          >
-            {addedToCart ? <Check size={20} /> : <ShoppingCart size={20} />}
-          </button>
-        </div>
+
       </div>
       
       <div className="product-info">

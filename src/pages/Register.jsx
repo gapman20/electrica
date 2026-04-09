@@ -35,7 +35,7 @@ const Register = () => {
               .then(res => res.json())
               .then(data => {
                 if (data.token) {
-                  localStorage.setItem('token', data.token);
+                  localStorage.setItem('auth_token', data.token);
                   localStorage.setItem('tcg_user', JSON.stringify(data.user));
                   setUser(data.user);
                   setRedirecting(true);

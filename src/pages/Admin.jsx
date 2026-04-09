@@ -293,11 +293,41 @@ const Admin = () => {
     const checkNewOrders = async () => {
       await loadOrders();
     };
+
+    const checkSellados = async () => {
+      try {
+        const data = await api.products.getAll();
+        if (Array.isArray(data)) {
+          setSellados(prev => {
+            const hasChanges = JSON.stringify(prev) !== JSON.stringify(data);
+            return hasChanges ? data : prev;
+          });
+        }
+      } catch (err) {
+        console.error('Error refreshing sellados:', err);
+      }
+    };
+
+    const checkCards = async () => {
+      try {
+        const data = await api.cards.getAll();
+        if (Array.isArray(data)) {
+          setCards(prev => {
+            const hasChanges = JSON.stringify(prev) !== JSON.stringify(data);
+            return hasChanges ? data : prev;
+          });
+        }
+      } catch (err) {
+        console.error('Error refreshing cards:', err);
+      }
+    };
     
     const interval = setInterval(() => {
       checkNewMessages();
       checkNewOrders();
-    }, 5000);
+      checkSellados();
+      checkCards();
+    }, 3000);
     
     return () => clearInterval(interval);
   }, []);
@@ -725,7 +755,7 @@ const Admin = () => {
         
         const dashboardSellados = sellados;
         const dashboardCards = cards;
-        const orders = JSON.parse(localStorage.getItem('tcg_orders') || '[]');
+        const dashboardOrders = orders;
         
         const totalProducts = dashboardSellados.length + dashboardCards.length;
         const activeProducts = [...dashboardSellados, ...dashboardCards].filter(p => p.active !== false).length;
@@ -735,23 +765,23 @@ const Admin = () => {
         const inventoryValue = [...dashboardSellados, ...dashboardCards].reduce((sum, p) => sum + (p.price * (p.stock || 0)), 0);
         
         const now = new Date();
-        const todayOrders = orders.filter(o => {
+        const todayOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
           return orderDate.toDateString() === now.toDateString();
         });
-        const weekOrders = orders.filter(o => {
+        const weekOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
           const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           return orderDate >= weekAgo;
         });
-        const monthOrders = orders.filter(o => {
+        const monthOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
           const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           return orderDate >= monthAgo;
         });
         
-        const topProduct = orders.length > 0 
-          ? orders.reduce((acc, order) => {
+        const topProduct = dashboardOrders.length > 0 
+          ? dashboardOrders.reduce((acc, order) => {
               order.items?.forEach(item => {
                 acc[item.name] = (acc[item.name] || 0) + item.quantity;
               });
@@ -799,7 +829,7 @@ const Admin = () => {
               <StatCard label="Pedidos Hoy" val={todayOrders.length} sub="Últimas 24h" color="#25d366" Icon={BarChart2} />
               <StatCard label="Pedidos Semana" val={weekOrders.length} sub="Últimos 7 días" color="#3b82f6" Icon={BarChart2} />
               <StatCard label="Pedidos Mes" val={monthOrders.length} sub="Últimos 30 días" color="#8b5cf6" Icon={BarChart2} />
-              <StatCard label="Total Pedidos" val={orders.length} sub="Registrados" color="#f59e0b" Icon={BarChart2} />
+              <StatCard label="Total Pedidos" val={dashboardOrders.length} sub="Registrados" color="#f59e0b" Icon={BarChart2} />
             </div>
 
             {/* Top Product & More Info */}
@@ -2368,9 +2398,9 @@ const Admin = () => {
                           </div>
                           <div>
                             <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '2px' }}>Dirección</p>
-                            <p style={{ fontSize: '0.85rem' }}>{order.shippingAddress?.street || 'N/A'}</p>
+                            <p style={{ fontSize: '0.85rem' }}>{order.address || 'N/A'}</p>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                              {order.shippingAddress?.city || ''}{order.shippingAddress?.state ? `, ${order.shippingAddress.state}` : ''} {order.shippingAddress?.zip || ''}
+                              {order.city || ''}{order.state ? `, ${order.state}` : ''} {order.zipCode || ''}
                             </p>
                           </div>
                           <div>
@@ -2379,7 +2409,7 @@ const Admin = () => {
                               ${order.total ? order.total.toLocaleString('es-MX') : '0.00'}
                             </p>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {order.items?.length || 0} producto(s)
+                              Subtotal: ${order.subtotal ? order.subtotal.toLocaleString('es-MX') : '0.00'} | Envío: ${order.shipping || 0}
                             </p>
                           </div>
                         </div>
@@ -2405,8 +2435,9 @@ const Admin = () => {
                             <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Productos:</p>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                               {order.items.map((item, idx) => (
-                                <div key={idx} style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                  {item.quantity}x {item.name} — ${item.price?.toLocaleString('es-MX')}
+                                <div key={idx} style={{ fontSize: '0.85rem', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between' }}>
+                                  <span>{item.quantity}x {item.name}</span>
+                                  <span style={{ fontWeight: '600' }}>${(item.price * item.quantity).toLocaleString('es-MX')}</span>
                                 </div>
                               ))}
                             </div>

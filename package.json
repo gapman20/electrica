@@ -12,6 +12,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^6.1.0",
+    "@stripe/stripe-js": "^9.1.0",
     "firebase": "^12.10.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.577.0",

@@ -14,7 +14,7 @@ export const UserProvider = ({ children }) => {
 
   useEffect(() => {
     const savedUser = localStorage.getItem(USER_KEY);
-    const savedToken = localStorage.getItem(TOKEN_KEY);
+    const savedToken = localStorage.getItem(TOKEN_KEY) || localStorage.getItem('auth_token');
     
     if (savedUser && savedToken) {
       try {
@@ -23,6 +23,7 @@ export const UserProvider = ({ children }) => {
         console.error('Error parsing user data:', e);
         localStorage.removeItem(USER_KEY);
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem('auth_token');
       }
     }
     setLoading(false);

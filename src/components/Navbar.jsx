@@ -15,10 +15,10 @@ const Navbar = () => {
   const { logout: siteLogout } = useSite();
   const location = useLocation();
   const navigate = useNavigate();
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(localStorage.getItem('token') || localStorage.getItem('auth_token'));
   
   useEffect(() => {
-    const checkToken = () => setToken(localStorage.getItem('token'));
+    const checkToken = () => setToken(localStorage.getItem('token') || localStorage.getItem('auth_token'));
     window.addEventListener('storage', checkToken);
     const interval = setInterval(checkToken, 500);
     return () => {
@@ -43,6 +43,7 @@ const Navbar = () => {
   const handleLogout = async () => {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('token');
     localStorage.removeItem('auth_token');
     await siteLogout();
     navigate('/');

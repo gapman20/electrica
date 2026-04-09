@@ -123,9 +123,6 @@ const SealedProductCard = ({ product, onAddToCart }) => {
               <Heart size={20} fill={wishlisted ? 'var(--accent-gold)' : 'none'} color={wishlisted ? 'var(--accent-gold)' : 'currentColor'} />
             </button>
           )}
-          <button className={`action-btn cart-btn ${addedToCart ? 'added' : ''}`} onClick={handleAddToCart}>
-            {addedToCart ? <Check size={20} /> : <ShoppingCart size={20} />}
-          </button>
         </div>
         
         {product.stock === 0 && (
