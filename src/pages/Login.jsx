@@ -89,8 +89,12 @@ const Login = () => {
   }, []);
 
   const handleGoogleLogin = () => {
+    console.log('handleGoogleLogin clicked');
     if (window.google?.accounts?.id) {
+      console.log('Calling prompt()');
       window.google.accounts.id.prompt();
+    } else {
+      console.log('Google not available');
     }
   };
 
@@ -155,6 +159,7 @@ const Login = () => {
               placeholder="tu@email.com" 
               value={formData.email} 
               onChange={handleChange}
+              autoComplete="username"
               style={{ width: '100%', padding: '12px 14px', background: 'rgba(0,0,0,0.3)', border: `1px solid ${error ? '#ef4444' : 'var(--glass-border)'}`, color: 'var(--text-primary)', borderRadius: '8px', outline: 'none', fontSize: '0.95rem' }}
               required
             />
