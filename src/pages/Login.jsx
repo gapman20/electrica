@@ -37,8 +37,21 @@ const Login = () => {
   }, [navigate, setUser]);
 
   const handleGoogleLogin = () => {
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt();
+    console.log('handleGoogleLogin', {
+      google: !!window.google,
+      accounts: !!window.google?.accounts,
+      id: !!window.google?.accounts?.id,
+      initialized: window.googleInitialized
+    });
+    try {
+      if (window.google?.accounts?.id) {
+        const result = window.google.accounts.id.prompt();
+        console.log('prompt result:', result);
+      } else {
+        console.log('Google not available for prompt');
+      }
+    } catch (e) {
+      console.error('prompt error:', e);
     }
   };
 
