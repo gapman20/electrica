@@ -14,7 +14,6 @@ if (typeof window !== 'undefined') {
     
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
-      console.log('No Google Client ID configured');
       return;
     }
     
@@ -29,7 +28,6 @@ if (typeof window !== 'undefined') {
         window.google.accounts.id.initialize({
           client_id: clientId,
           callback: (response) => {
-            console.log('Google callback:', response);
             if (response.credential) {
               fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/google`, {
                 method: 'POST',
@@ -43,8 +41,6 @@ if (typeof window !== 'undefined') {
                   localStorage.setItem('tcg_user', JSON.stringify(data.user));
                   window.dispatchEvent(new CustomEvent('google-login-success', { detail: data }));
                   window.location.reload();
-                } else {
-                  console.error('Google login failed:', data.error);
                 }
               });
             }
@@ -55,7 +51,6 @@ if (typeof window !== 'undefined') {
         });
         window.googleReadyCallbacks.forEach(cb => cb());
         window.googleReadyCallbacks = [];
-        console.log('Google initialized');
         
         setTimeout(() => {
           const container = document.getElementById('google-button-container');
@@ -65,7 +60,6 @@ if (typeof window !== 'undefined') {
               size: 'large',
               width: '100%'
             });
-            console.log('Google button rendered');
             
             if (!container.querySelector('button')) {
               window.googleReadyCallbacks.forEach(cb => cb());

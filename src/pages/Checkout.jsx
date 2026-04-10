@@ -166,7 +166,6 @@ const Checkout = () => {
   };
 
   const handlePayPalCancel = (data) => {
-    console.log('PayPal cancelled:', data);
     setPaymentCancelled(true);
     setPaymentError(null);
   };
