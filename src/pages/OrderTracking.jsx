@@ -96,6 +96,13 @@ const OrderTracking = () => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleLookup = async (e) => {
+    if (e) e.preventDefault();
+    if (!formData.orderId.trim() || !formData.email.trim()) return;
+    setSearchAttempted(true);
+    await lookupOrder(formData.orderId.trim(), formData.email.trim());
+  };
+
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
