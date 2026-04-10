@@ -7,13 +7,7 @@ import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { cardApi, gameApi } from '../services/api';
 import ProductCard from '../components/ProductCard';
-
-const formatPrice = (price) => {
-  if (!price) return '';
-  const num = typeof price === 'number' ? price : parseFloat(price);
-  if (isNaN(num)) return price || '';
-  return `$${num.toLocaleString('es-MX')} MXN`;
-};
+import { formatPrice } from '../utils/format';
 
 const normalizeCard = (card) => ({
   ...card,

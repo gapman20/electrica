@@ -11,6 +11,7 @@ import { isStripeConfigured, getStripe } from '../services/stripeService';
 import { Elements } from '@stripe/react-stripe-js';
 import StripeCheckout from '../components/StripeCheckout';
 import api from '../services/api';
+import { formatPrice } from '../utils/format';
 import Swal from 'sweetalert2';
 
 const PAYMENT_CONFIG = {
@@ -92,8 +93,6 @@ const Checkout = () => {
     setCheckoutStep(1);
     setFormData({ name: '', email: '', phone: '', street: '', city: '', state: '', zip: '', country: 'MX' });
   };
-
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
   const validateForm = () => {
     const newErrors = {};

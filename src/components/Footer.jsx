@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useSite } from '../context/SiteContext';
 import { Instagram, Youtube, Facebook, Sparkles, Sword } from 'lucide-react';
@@ -123,4 +123,4 @@ const socialBtn = {
   transition: 'all 0.2s',
 };
 
-export default Footer;
+export default React.memo(Footer);

@@ -4,6 +4,7 @@ import { useOrder } from '../context/OrderContext';
 import { useUser } from '../context/UserContext';
 import { orderApi } from '../services/api';
 import { Package, Search, ArrowLeft } from 'lucide-react';
+import { formatPrice } from '../utils/format';
 
 const OrderTracking = () => {
   const { orderId } = useParams();
@@ -95,14 +96,6 @@ const OrderTracking = () => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleLookup = async (e) => {
-    if (e) e.preventDefault();
-    if (!formData.orderId.trim() || !formData.email.trim()) return;
-    setSearchAttempted(true);
-    await lookupOrder(formData.orderId.trim(), formData.email.trim());
-  };
-
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);

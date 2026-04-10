@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { SiteProvider, useSite } from './context/SiteContext';
 import { WishlistProvider } from './context/WishlistContext';
-import { UserProvider } from './context/UserContext';
+import { UserProvider, useUser } from './context/UserContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './components/Toast';
 import Navbar from './components/Navbar';
@@ -42,15 +42,23 @@ const Wishlist = React.lazy(() => import('./pages/Wishlist'));
 
 const AppContent = () => {
   const { pages, isAuthenticated } = useSite();
-  
-  const isAdminUser = (() => {
+  const { user } = useUser();
+
+  const isAdminUser = useMemo(() => {
+    // Check from UserContext if available, fallback to localStorage
+    if (user?.role === 'ADMIN') return true;
+    
     const savedUser = localStorage.getItem('tcg_user');
     if (savedUser) {
-      const user = JSON.parse(savedUser);
-      return user?.role === 'ADMIN';
+      try {
+        const parsed = JSON.parse(savedUser);
+        return parsed?.role === 'ADMIN';
+      } catch {
+        return false;
+      }
     }
     return false;
-  })();
+  }, [user, isAuthenticated]);
   
   const componentMap = {
     home: <Home />,

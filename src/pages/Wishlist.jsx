@@ -7,6 +7,7 @@ import { useUser } from '../context/UserContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { getGameValue } from '../services/api';
+import { formatPrice } from '../utils/format';
 
 const GAMES = {
   pokemon: { name: 'Pokémon TCG', icon: '🔴', color: '#ef4444' },
@@ -17,8 +18,6 @@ const GAMES = {
   dragonball: { name: 'Dragon Ball', icon: '🟠', color: '#f97316' },
   lorcana: { name: 'Lorcana', icon: '✨', color: '#ec4899' }
 };
-
-const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
 const Wishlist = () => {
   const { items, removeItem, clearWishlist, loading } = useWishlist();

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useOrder } from '../context/OrderContext';
 import { CheckCircle, Package, CreditCard, MapPin, Phone } from 'lucide-react';
+import { formatPrice } from '../utils/format';
 
 const OrderConfirmation = () => {
   const { orderId } = useParams();
@@ -19,8 +20,6 @@ const OrderConfirmation = () => {
     };
     loadOrder();
   }, [orderId, currentOrder, fetchOrderById]);
-
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
   const getPaymentMethodLabel = (method) => {
     const labels = {
