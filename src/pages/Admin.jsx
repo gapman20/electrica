@@ -299,8 +299,14 @@ const Admin = () => {
         const data = await api.products.getAll();
         if (Array.isArray(data)) {
           setSellados(prev => {
-            const hasChanges = JSON.stringify(prev) !== JSON.stringify(data);
-            return hasChanges ? data : prev;
+            // Preserve locally created/edited items that haven't been saved yet
+            const localItems = prev.filter(item => item.isNew);
+            const backendItems = data.filter(backendItem => 
+              !localItems.some(local => local.id === backendItem.id)
+            );
+            const merged = [...localItems, ...backendItems];
+            const hasChanges = JSON.stringify(prev) !== JSON.stringify(merged);
+            return hasChanges ? merged : prev;
           });
         }
       } catch (err) {
@@ -313,8 +319,14 @@ const Admin = () => {
         const data = await api.cards.getAll();
         if (Array.isArray(data)) {
           setCards(prev => {
-            const hasChanges = JSON.stringify(prev) !== JSON.stringify(data);
-            return hasChanges ? data : prev;
+            // Preserve locally created/edited items that haven't been saved yet
+            const localItems = prev.filter(item => item.isNew);
+            const backendItems = data.filter(backendItem => 
+              !localItems.some(local => local.id === backendItem.id)
+            );
+            const merged = [...localItems, ...backendItems];
+            const hasChanges = JSON.stringify(prev) !== JSON.stringify(merged);
+            return hasChanges ? merged : prev;
           });
         }
       } catch (err) {
