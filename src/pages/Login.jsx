@@ -7,6 +7,8 @@ import { Lock, Mail, ArrowLeft, User } from 'lucide-react';
 import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
 
+window.googleAsyncInitDone = false;
+
 const Login = () => {
   const navigate = useNavigate();
   const { login: adminLogin } = useSite();
@@ -18,10 +20,17 @@ const Login = () => {
   const [googleButtonReady, setGoogleButtonReady] = useState(false);
 
   useEffect(() => {
+    if (window.googleInitialized) {
+      setGoogleButtonReady(true);
+      return;
+    }
+
     const initGoogle = () => {
       console.log('Google init starting...');
       console.log('Google available:', !!window.google?.accounts?.id);
       console.log('Client ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
+      
+      window.googleInitialized = true;
       
       if (window.google?.accounts?.id) {
         try {

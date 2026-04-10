@@ -7,6 +7,8 @@ import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
 import PageLoader from '../components/PageLoader';
 
+window.googleInitialized = window.googleInitialized || false;
+
 const Register = () => {
   const navigate = useNavigate();
   const { setUser } = useUser();
@@ -22,7 +24,14 @@ const Register = () => {
   const [googleButtonReady, setGoogleButtonReady] = useState(false);
 
   useEffect(() => {
+    if (window.googleInitialized) {
+      setGoogleButtonReady(true);
+      return;
+    }
+
     const initGoogle = () => {
+      window.googleInitialized = true;
+      
       if (window.google?.accounts?.id) {
         window.google.accounts.id.initialize({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
