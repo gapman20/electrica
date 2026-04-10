@@ -10,6 +10,8 @@ import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
 import ScrollToTop from './components/ScrollToTop';
 import PageLoader from './components/PageLoader';
+import ErrorBoundary from './components/ErrorBoundary';
+import NotFound from './pages/NotFound';
 
 // Lazy Loaded Pages
 const Home = React.lazy(() => import('./pages/Home'));
@@ -69,39 +71,44 @@ const AppContent = () => {
       <Navbar />
       <main>
         <PageLoader />
-        <React.Suspense fallback={
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: 'var(--text-secondary)' }}>
-            <div className="spinner">Cargando...</div>
-          </div>
-        }>
-          <Routes>
-            {/* Static Routes */}
-            <Route path="/servicios/1" element={<ServiceDetail1 />} />
-            <Route path="/servicios/2" element={<ServiceDetail2 />} />
-            <Route path="/blog/:id" element={<BlogPost />} />
-            <Route path="/admin" element={isAdminUser ? <Admin /> : <Login />} />
-            <Route path="/carrito" element={<Cart />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/pedido/:orderId/confirmacion" element={<OrderConfirmation />} />
-            <Route path="/catalogo/:game" element={<Catalog />} />
-            <Route path="/producto/:id" element={<ProductDetail />} />
-            <Route path="/mis-deseos" element={<Wishlist />} />
-            <Route path="/mis-pedidos/:orderId" element={<OrderTracking />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/registro" element={<Register />} />
-            <Route path="/mi-cuenta" element={<MyAccount />} />
-            <Route path="/recuperar-password" element={<ForgotPassword />} />
-            
-            {/* Dynamic Pages from SiteContext */}
-            {pages.filter(p => p.active).map(page => (
-              <Route 
-                key={page.id} 
-                path={page.path} 
-                element={page.isCustom ? <CustomPage page={page} /> : componentMap[page.id]} 
-              />
-            ))}
-          </Routes>
-        </React.Suspense>
+        <ErrorBoundary>
+          <React.Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: 'var(--text-secondary)' }}>
+              <div className="spinner">Cargando...</div>
+            </div>
+          }>
+            <Routes>
+              {/* Static Routes */}
+              <Route path="/servicios/1" element={<ServiceDetail1 />} />
+              <Route path="/servicios/2" element={<ServiceDetail2 />} />
+              <Route path="/blog/:id" element={<BlogPost />} />
+              <Route path="/admin" element={isAdminUser ? <Admin /> : <Login />} />
+              <Route path="/carrito" element={<Cart />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/pedido/:orderId/confirmacion" element={<OrderConfirmation />} />
+              <Route path="/catalogo/:game" element={<Catalog />} />
+              <Route path="/producto/:id" element={<ProductDetail />} />
+              <Route path="/mis-deseos" element={<Wishlist />} />
+              <Route path="/mis-pedidos/:orderId" element={<OrderTracking />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/registro" element={<Register />} />
+              <Route path="/mi-cuenta" element={<MyAccount />} />
+              <Route path="/recuperar-password" element={<ForgotPassword />} />
+
+              {/* Dynamic Pages from SiteContext */}
+              {pages.filter(p => p.active).map(page => (
+                <Route
+                  key={page.id}
+                  path={page.path}
+                  element={page.isCustom ? <CustomPage page={page} /> : componentMap[page.id]}
+                />
+              ))}
+
+              {/* 404 Not Found - Must be last */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </React.Suspense>
+        </ErrorBoundary>
       </main>
       <Footer />
       <WhatsAppButton />
