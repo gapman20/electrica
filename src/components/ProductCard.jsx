@@ -76,7 +76,7 @@ const ProductCard = ({ item, type = 'product' }) => {
     <div className="tcg-product-card">
       <div className="product-image-container">
         {item.imageUrl || item.image ? (
-          <img src={item.imageUrl || item.image} alt={item.name} className="product-image" />
+          <img src={item.imageUrl || item.image} alt={item.name} className="product-image" loading="lazy" />
         ) : (
           <div className="product-placeholder">
             <Package size={48} color="var(--text-secondary)" />

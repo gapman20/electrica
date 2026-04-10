@@ -14,10 +14,11 @@ const Footer = () => {
         {/* Brand */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
-            <img 
-              src="/Adventure.jpeg" 
-              alt="Adventure TCG" 
-              style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }} 
+            <img
+              src="/Adventure.jpeg"
+              alt="Adventure TCG"
+              loading="lazy"
+              style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }}
             />
             <span style={{ fontFamily: 'var(--font-heading)', fontWeight: '800', fontSize: '1.1rem', color: 'var(--accent-gold)' }}>{content.siteName}</span>
           </div>

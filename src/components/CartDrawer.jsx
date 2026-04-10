@@ -38,7 +38,7 @@ const CartDrawer = () => {
               <div key={item.cartId} className="cart-drawer-item">
                 <div className="cart-drawer-item-image">
                   {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.name} />
+                    <img src={item.imageUrl} alt={item.name} loading="lazy" />
                   ) : (
                     <div className="cart-drawer-item-placeholder">{item.name?.charAt(0)}</div>
                   )}

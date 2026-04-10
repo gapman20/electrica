@@ -62,10 +62,11 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="navbar-container">
         <Link to="/" className="navbar-logo" onClick={() => setIsOpen(false)}>
-          <img 
-            src="/Adventure.jpeg" 
-            alt="Adventure" 
-            style={{ width: '38px', height: '38px', borderRadius: '10px', objectFit: 'cover' }} 
+          <img
+            src="/Adventure.jpeg"
+            alt="Adventure"
+            loading="lazy"
+            style={{ width: '38px', height: '38px', borderRadius: '10px', objectFit: 'cover' }}
           />
           <span>Adventure</span>
         </Link>
