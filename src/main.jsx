@@ -18,6 +18,8 @@ if (typeof window !== 'undefined') {
       return;
     }
     
+    window.googleInitialized = true;
+    
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
@@ -51,10 +53,27 @@ if (typeof window !== 'undefined') {
           auto_select: false,
           cancel_on_tap_outside: false,
         });
-        window.googleInitialized = true;
         window.googleReadyCallbacks.forEach(cb => cb());
         window.googleReadyCallbacks = [];
         console.log('Google initialized');
+        
+        setTimeout(() => {
+          const container = document.getElementById('google-button-container');
+          if (container && window.google?.accounts?.id) {
+            window.google.accounts.id.renderButton(container, {
+              theme: 'outline',
+              size: 'large',
+              width: '100%'
+            });
+            console.log('Google button rendered');
+            
+            if (!container.querySelector('button')) {
+              window.googleReadyCallbacks.forEach(cb => cb());
+            }
+          } else {
+            window.googleReadyCallbacks.forEach(cb => cb());
+          }
+        }, 500);
       }
     };
     document.head.appendChild(script);
