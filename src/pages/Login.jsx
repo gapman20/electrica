@@ -66,25 +66,11 @@ const Login = () => {
               }
             },
             auto_select: false,
-            cancel_on_tap_outside: false
+            cancel_on_tap_outside: false,
+            ux_mode: "popup"
           });
           console.log('Google initialized successfully');
-          
-          setTimeout(() => {
-            if (window.google?.accounts?.id) {
-              const googleBtnContainer = document.getElementById('googleButtonContainer');
-              if (googleBtnContainer) {
-                window.google.accounts.id.renderButton(googleBtnContainer, {
-                  theme: 'outline',
-                  size: 'large',
-                  width: '100%'
-                });
-                setGoogleButtonReady(true);
-                console.log('Google button rendered');
-              }
-            }
-          }, 100);
-          
+          setGoogleButtonReady(true);
         } catch (e) {
           console.error('Error initializing Google:', e);
         }
@@ -222,9 +208,7 @@ const Login = () => {
           <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
         </div>
 
-        {googleButtonReady ? (
-          <div id="googleButtonContainer"></div>
-        ) : (
+        {googleButtonReady && (
           <button 
             onClick={handleGoogleLogin}
             className="btn-primary"
