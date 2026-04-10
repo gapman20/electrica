@@ -27,6 +27,7 @@ if (typeof window !== 'undefined') {
         window.google.accounts.id.initialize({
           client_id: clientId,
           callback: (response) => {
+            console.log('Google callback:', response);
             if (response.credential) {
               fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/google`, {
                 method: 'POST',
@@ -39,17 +40,21 @@ if (typeof window !== 'undefined') {
                   localStorage.setItem('auth_token', data.token);
                   localStorage.setItem('tcg_user', JSON.stringify(data.user));
                   window.dispatchEvent(new CustomEvent('google-login-success', { detail: data }));
+                  window.location.reload();
+                } else {
+                  console.error('Google login failed:', data.error);
                 }
               });
             }
           },
-          ux_mode: 'redirect',
+          ux_mode: 'popup',
           auto_select: false,
           cancel_on_tap_outside: false,
         });
         window.googleInitialized = true;
         window.googleReadyCallbacks.forEach(cb => cb());
         window.googleReadyCallbacks = [];
+        console.log('Google initialized');
       }
     };
     document.head.appendChild(script);
