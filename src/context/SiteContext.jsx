@@ -318,7 +318,26 @@ export const SiteProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 
   useEffect(() => { applyTheme(theme); }, [theme]);
-  useEffect(() => { loadMessages(); }, []);
+  useEffect(() => { 
+    // Only load contact messages for admin users with valid tokens
+    const isAdmin = (() => {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      const savedUser = localStorage.getItem('tcg_user');
+      
+      if (!token || !savedUser) return false;
+      
+      try {
+        const user = JSON.parse(savedUser);
+        return user?.role === 'ADMIN';
+      } catch {
+        return false;
+      }
+    })();
+    
+    if (isAdmin) {
+      loadMessages();
+    }
+  }, []);
 
   const updateContent = (path, value) => {
     setContent(prev => {
