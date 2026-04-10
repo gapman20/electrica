@@ -286,22 +286,41 @@ const Admin = () => {
   }, [active]);
 
   useEffect(() => {
+    // Only poll data that's relevant to the current active tab
+    // This reduces unnecessary API calls and prevents rate limiting
+    const POLL_INTERVAL = 15000; // 15 seconds instead of 3
+
     const checkNewMessages = async () => {
-      await loadMessages();
+      if (active !== 'inbox') return; // Only poll when on inbox tab
+      try {
+        await loadMessages();
+      } catch (err) {
+        if (err.message?.includes('Demasiadas solicitudes')) {
+          console.warn('Rate limited, skipping message refresh');
+        }
+      }
     };
-    
+
     const checkNewOrders = async () => {
-      await loadOrders();
+      if (active !== 'orders') return; // Only poll when on orders tab
+      try {
+        await loadOrders();
+      } catch (err) {
+        if (err.message?.includes('Demasiadas solicitudes')) {
+          console.warn('Rate limited, skipping order refresh');
+        }
+      }
     };
 
     const checkSellados = async () => {
+      if (active !== 'sellados') return; // Only poll when on sellados tab
       try {
         const data = await api.products.getAll();
         if (Array.isArray(data)) {
           setSellados(prev => {
             // Preserve locally created/edited items that haven't been saved yet
             const localItems = prev.filter(item => item.isNew);
-            const backendItems = data.filter(backendItem => 
+            const backendItems = data.filter(backendItem =>
               !localItems.some(local => local.id === backendItem.id)
             );
             const merged = [...localItems, ...backendItems];
@@ -310,18 +329,23 @@ const Admin = () => {
           });
         }
       } catch (err) {
-        console.error('Error refreshing sellados:', err);
+        if (err.message?.includes('Demasiadas solicitudes')) {
+          console.warn('Rate limited, skipping sellados refresh');
+        } else {
+          console.error('Error refreshing sellados:', err);
+        }
       }
     };
 
     const checkCards = async () => {
+      if (active !== 'cards') return; // Only poll when on cards tab
       try {
         const data = await api.cards.getAll();
         if (Array.isArray(data)) {
           setCards(prev => {
             // Preserve locally created/edited items that haven't been saved yet
             const localItems = prev.filter(item => item.isNew);
-            const backendItems = data.filter(backendItem => 
+            const backendItems = data.filter(backendItem =>
               !localItems.some(local => local.id === backendItem.id)
             );
             const merged = [...localItems, ...backendItems];
@@ -330,19 +354,23 @@ const Admin = () => {
           });
         }
       } catch (err) {
-        console.error('Error refreshing cards:', err);
+        if (err.message?.includes('Demasiadas solicitudes')) {
+          console.warn('Rate limited, skipping cards refresh');
+        } else {
+          console.error('Error refreshing cards:', err);
+        }
       }
     };
-    
+
     const interval = setInterval(() => {
       checkNewMessages();
       checkNewOrders();
       checkSellados();
       checkCards();
-    }, 3000);
-    
+    }, POLL_INTERVAL);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [active, loadMessages, loadOrders]);
 
   useEffect(() => {
     if (inbox.length > 0) {
