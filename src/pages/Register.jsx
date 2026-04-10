@@ -64,7 +64,8 @@ const Register = () => {
               });
             }
           },
-          ux_mode: "popup"
+          ux_mode: "popup",
+          credential_mode: "interactive"
         });
         setGoogleButtonReady(true);
       }

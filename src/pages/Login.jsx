@@ -67,7 +67,8 @@ const Login = () => {
             },
             auto_select: false,
             cancel_on_tap_outside: false,
-            ux_mode: "popup"
+            ux_mode: "popup",
+            credential_mode: "interactive"
           });
           console.log('Google initialized successfully');
           setGoogleButtonReady(true);
