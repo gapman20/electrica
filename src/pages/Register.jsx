@@ -27,10 +27,24 @@ const Register = () => {
       setTimeout(() => navigate('/'), 300);
     };
 
-    if (window.googleInitialized) {
+    const checkGoogleButton = () => {
       setGoogleReady(true);
+      
+      setTimeout(() => {
+        const container = document.getElementById('google-button-container');
+        const fallbackBtn = document.getElementById('google-fallback-button');
+        const hasGoogleBtn = container && container.querySelector('[role="button"], iframe');
+        
+        if (fallbackBtn) {
+          fallbackBtn.style.display = hasGoogleBtn ? 'none' : 'flex';
+        }
+      }, 600);
+    };
+
+    if (window.googleInitialized) {
+      checkGoogleButton();
     } else {
-      window.googleReadyCallbacks.push(() => setGoogleReady(true));
+      window.googleReadyCallbacks.push(checkGoogleButton);
     }
 
     window.addEventListener('google-login-success', handleGoogleSuccess);
@@ -191,12 +205,16 @@ const Register = () => {
           <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
         </div>
 
+        <div id="google-button-container" style={{ display: 'flex', justifyContent: 'center' }}></div>
+
         {googleReady && (
           <button 
             onClick={handleGoogleRegister}
             className="btn-primary"
+            id="google-fallback-button"
             style={{ 
-              width: '100%', 
+              width: '100%',
+              maxWidth: '300px',
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center', 
@@ -210,6 +228,7 @@ const Register = () => {
               fontWeight: '600',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
+              margin: '0 auto',
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
