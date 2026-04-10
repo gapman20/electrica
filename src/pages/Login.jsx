@@ -174,7 +174,7 @@ const Login = () => {
           <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
         </div>
 
-        <div id="google-button-container"></div>
+        <div id="google-button-container" style={{ display: 'flex', justifyContent: 'center' }}></div>
 
         {googleReady && (
           <button 
@@ -182,7 +182,8 @@ const Login = () => {
             className="btn-primary"
             id="google-fallback-button"
             style={{ 
-              width: '100%', 
+              width: '100%',
+              maxWidth: '300px', 
               display: 'none', 
               alignItems: 'center', 
               justifyContent: 'center', 
@@ -195,6 +196,7 @@ const Login = () => {
               fontSize: '0.95rem',
               fontWeight: '600',
               cursor: 'pointer',
+              margin: '0 auto',
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
