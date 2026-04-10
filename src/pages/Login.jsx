@@ -7,8 +7,6 @@ import { Lock, Mail, ArrowLeft, User } from 'lucide-react';
 import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
 
-window.googleAsyncInitDone = false;
-
 const Login = () => {
   const navigate = useNavigate();
   const { login: adminLogin } = useSite();
@@ -17,99 +15,30 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginPhase, setLoginPhase] = useState('idle');
-  const [googleButtonReady, setGoogleButtonReady] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
 
   useEffect(() => {
-    if (window.googleInitialized) {
-      setGoogleButtonReady(true);
-      return;
-    }
-
-    const initGoogle = () => {
-      console.log('Google init starting...');
-      console.log('Google available:', !!window.google?.accounts?.id);
-      console.log('Client ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
-      
-      window.googleInitialized = true;
-      
-      if (window.google?.accounts?.id) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-            callback: (response) => {
-              console.log('Google callback received');
-              if (response.credential) {
-                fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/google`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ googleToken: response.credential }),
-                })
-                .then(res => res.json())
-                .then(data => {
-                  if (data.token) {
-                    localStorage.setItem('auth_token', data.token);
-                    localStorage.setItem('tcg_user', JSON.stringify(data.user));
-                    setUser(data.user);
-                    navigate('/');
-                  } else {
-                    Swal.fire({
-                      icon: 'error',
-                      title: 'Error',
-                      text: data.error || 'No se pudo iniciar sesión con Google',
-                      confirmButtonColor: '#d4af37',
-                      background: 'rgba(15, 23, 42, 0.95)',
-                      color: '#fff',
-                    });
-                  }
-                })
-                .catch(err => {
-                  Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: err.message,
-                    confirmButtonColor: '#d4af37',
-                    background: 'rgba(15, 23, 42, 0.95)',
-                    color: '#fff',
-                  });
-                });
-              }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: false,
-            ux_mode: "popup",
-            credential_mode: "interactive"
-          });
-          console.log('Google initialized successfully');
-          setGoogleButtonReady(true);
-        } catch (e) {
-          console.error('Error initializing Google:', e);
-        }
-      } else {
-        console.log('Google accounts.id not available');
-      }
+    const handleGoogleSuccess = (e) => {
+      const { user, token } = e.detail;
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('tcg_user', JSON.stringify(user));
+      setUser(user);
+      navigate('/');
     };
 
-    if (window.google?.accounts?.id) {
-      initGoogle();
+    if (window.googleInitialized) {
+      setGoogleReady(true);
     } else {
-      console.log('Loading Google script...');
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = initGoogle;
-      script.onerror = () => console.error('Failed to load Google script');
-      document.head.appendChild(script);
+      window.googleReadyCallbacks.push(() => setGoogleReady(true));
     }
-  }, []);
+
+    window.addEventListener('google-login-success', handleGoogleSuccess);
+    return () => window.removeEventListener('google-login-success', handleGoogleSuccess);
+  }, [navigate, setUser]);
 
   const handleGoogleLogin = () => {
-    console.log('handleGoogleLogin clicked');
     if (window.google?.accounts?.id) {
-      console.log('Calling prompt()');
       window.google.accounts.id.prompt();
-    } else {
-      console.log('Google not available');
     }
   };
 
@@ -218,7 +147,7 @@ const Login = () => {
           <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
         </div>
 
-        {googleButtonReady && (
+        {googleReady && (
           <button 
             onClick={handleGoogleLogin}
             className="btn-primary"

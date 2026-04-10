@@ -7,8 +7,6 @@ import Swal from 'sweetalert2';
 import SEO from '../components/SEO';
 import PageLoader from '../components/PageLoader';
 
-window.googleInitialized = window.googleInitialized || false;
-
 const Register = () => {
   const navigate = useNavigate();
   const { setUser } = useUser();
@@ -21,76 +19,23 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
-  const [googleButtonReady, setGoogleButtonReady] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
 
   useEffect(() => {
-    if (window.googleInitialized) {
-      setGoogleButtonReady(true);
-      return;
-    }
-
-    const initGoogle = () => {
-      window.googleInitialized = true;
-      
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-          callback: (response) => {
-            if (response.credential) {
-              fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/google`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ googleToken: response.credential }),
-              })
-              .then(res => res.json())
-              .then(data => {
-                if (data.token) {
-                  localStorage.setItem('auth_token', data.token);
-                  localStorage.setItem('tcg_user', JSON.stringify(data.user));
-                  setUser(data.user);
-                  setRedirecting(true);
-                  setTimeout(() => navigate('/'), 300);
-                } else {
-                  Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: data.error || 'No se pudo registrar con Google',
-                    confirmButtonColor: '#d4af37',
-                    background: 'rgba(15, 23, 42, 0.95)',
-                    color: '#fff',
-                  });
-                }
-              })
-              .catch(err => {
-                Swal.fire({
-                  icon: 'error',
-                  title: 'Error',
-                  text: err.message,
-                  confirmButtonColor: '#d4af37',
-                  background: 'rgba(15, 23, 42, 0.95)',
-                  color: '#fff',
-                });
-              });
-            }
-          },
-          ux_mode: "popup",
-          credential_mode: "interactive"
-        });
-        setGoogleButtonReady(true);
-      }
+    const handleGoogleSuccess = (e) => {
+      setRedirecting(true);
+      setTimeout(() => navigate('/'), 300);
     };
 
-    if (!window.google?.accounts?.id) {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = initGoogle;
-      document.head.appendChild(script);
+    if (window.googleInitialized) {
+      setGoogleReady(true);
     } else {
-      initGoogle();
+      window.googleReadyCallbacks.push(() => setGoogleReady(true));
     }
-  }, []);
+
+    window.addEventListener('google-login-success', handleGoogleSuccess);
+    return () => window.removeEventListener('google-login-success', handleGoogleSuccess);
+  }, [navigate]);
 
   const handleGoogleRegister = () => {
     if (window.google?.accounts?.id) {
@@ -246,7 +191,7 @@ const Register = () => {
           <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
         </div>
 
-        {googleButtonReady && (
+        {googleReady && (
           <button 
             onClick={handleGoogleRegister}
             className="btn-primary"
