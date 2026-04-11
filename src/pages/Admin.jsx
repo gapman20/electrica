@@ -301,84 +301,74 @@ const Admin = () => {
     }
   }, [active]);
 
-  // SSE Real-time notifications setup
+  // Poll badge counts every 15 seconds and show notifications when counts increase
   useEffect(() => {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-    console.log('[SSE] Connecting to:', `${API_BASE_URL}/admin/events`);
-    
-    const eventSource = new EventSource(`${API_BASE_URL}/admin/events`);
-    eventSourceRef.current = eventSource;
+    const POLL_INTERVAL = 15000; // 15 seconds - much less frequent than before
+    let previousOrders = 0;
+    let previousMessages = 0;
 
-    eventSource.addEventListener('connected', (event) => {
-      console.log('[SSE] Connected to real-time events successfully');
-      setSseConnected(true);
-    });
-
-    eventSource.addEventListener('new_order', (event) => {
+    const pollBadgeCounts = async () => {
       try {
-        const payload = JSON.parse(event.data);
-        console.log('[SSE] 🔔 New order received:', payload);
+        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/orders/stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         
-        // Increment unread counter
-        setUnreadOrders(prev => prev + 1);
-        
-        // Show toast notification
-        if (window.Swal) {
-          window.Swal.fire({
-            title: '🛍️ New Order!',
-            text: `Order: ${payload.data.orderNumber} - $${payload.data.total.toFixed(2)}`,
-            icon: 'success',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 5000,
-            timerProgressBar: true,
-            background: '#10b981',
-            color: '#fff'
-          });
+        if (response.ok) {
+          const stats = await response.json();
+          
+          // Show notification if counts increased
+          if (stats.pendingOrders > previousOrders && previousOrders > 0) {
+            const newOrders = stats.pendingOrders - previousOrders;
+            console.log(`[Admin] 🛍️ ${newOrders} new order(s) detected`);
+            
+            window.Swal.fire({
+              title: '🛍️ New Order(s)!',
+              text: `${newOrders} new order(s) since last check`,
+              icon: 'success',
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 4000,
+              background: '#10b981',
+              color: '#fff'
+            });
+          }
+          
+          if (stats.unreadMessages > previousMessages && previousMessages > 0) {
+            const newMessages = stats.unreadMessages - previousMessages;
+            console.log(`[Admin] 📧 ${newMessages} new message(s) detected`);
+            
+            window.Swal.fire({
+              title: '📧 New Message(s)!',
+              text: `${newMessages} new message(s) since last check`,
+              icon: 'info',
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 4000,
+              background: '#3b82f6',
+              color: '#fff'
+            });
+          }
+          
+          setUnreadOrders(stats.pendingOrders);
+          setUnreadMessages(stats.unreadMessages);
+          
+          previousOrders = stats.pendingOrders;
+          previousMessages = stats.unreadMessages;
         }
-      } catch (err) {
-        console.error('[SSE] Error parsing order event:', err, event.data);
+      } catch (error) {
+        // Silently fail - will retry on next poll
       }
-    });
-
-    eventSource.addEventListener('new_message', (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        console.log('[SSE] 📧 New message received:', payload);
-        
-        setUnreadMessages(prev => prev + 1);
-        
-        if (window.Swal) {
-          window.Swal.fire({
-            title: '📧 New Message!',
-            text: `From: ${payload.data.name}`,
-            icon: 'info',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 5000,
-            background: '#3b82f6',
-            color: '#fff'
-          });
-        }
-      } catch (err) {
-        console.error('[SSE] Error parsing message event:', err, event.data);
-      }
-    });
-
-    eventSource.onerror = (error) => {
-      console.warn('[SSE] Connection lost, will auto-reconnect:', error);
-      setSseConnected(false);
     };
 
-    // Cleanup on unmount
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        console.log('[SSE] Disconnected');
-      }
-    };
+    // Load initial counts immediately
+    pollBadgeCounts();
+
+    // Then poll every 15 seconds
+    const interval = setInterval(pollBadgeCounts, POLL_INTERVAL);
+    return () => clearInterval(interval);
   }, []);
 
   // Load initial badge counts
