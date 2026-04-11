@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSite } from '../context/SiteContext';
 import { useToast } from '../components/Toast';
@@ -180,11 +180,21 @@ const insertFormat = (path, value, formatType, onChange) => {
   onChange(path, strVal + (strVal && strVal !== '' ? ' ' : '') + formats[formatType]);
 };
 
-// ─── Sidebar Sections ─────────────────────────────────────────────────────────
-const sections = [
+// ─── Sidebar Sections (with dynamic badges) ─────────────────────────────────────
+const AdminSections = ({ unreadOrders, unreadMessages }) => [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} /> },
-  { id: 'orders', label: 'Pedidos', icon: <Package size={17} /> },
-  { id: 'inbox', label: 'Bandeja de Entrada', icon: <Mail size={17} /> },
+  { 
+    id: 'orders', 
+    label: 'Pedidos', 
+    icon: <Package size={17} />,
+    badge: unreadOrders > 0 ? unreadOrders : null
+  },
+  { 
+    id: 'inbox', 
+    label: 'Bandeja de Entrada', 
+    icon: <Mail size={17} />,
+    badge: unreadMessages > 0 ? unreadMessages : null
+  },
   { id: 'sellados', label: 'Sellados', icon: <Package size={17} /> },
   { id: 'cards', label: 'Cartas Sueltas', icon: <Layers size={17} /> },
   { id: 'campaigns', label: 'Campañas Oferta', icon: <Tag size={17} /> },
@@ -240,6 +250,12 @@ const Admin = () => {
   // Campaigns state
   const [editingCampaign, setEditingCampaign] = useState(null);
 
+  // Real-time notifications state
+  const [unreadOrders, setUnreadOrders] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [sseConnected, setSseConnected] = useState(false);
+  const eventSourceRef = useRef(null);
+
   // Scryfall search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -285,92 +301,69 @@ const Admin = () => {
     }
   }, [active]);
 
+  // SSE Real-time notifications setup
   useEffect(() => {
-    // Only poll data that's relevant to the current active tab
-    // This reduces unnecessary API calls and prevents rate limiting
-    const POLL_INTERVAL = 15000; // 15 seconds instead of 3
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    const eventSource = new EventSource(`${API_BASE_URL}/admin/events`);
+    eventSourceRef.current = eventSource;
 
-    const checkNewMessages = async () => {
-      if (active !== 'inbox') return; // Only poll when on inbox tab
-      try {
-        await loadMessages();
-      } catch (err) {
-        if (err.message?.includes('Demasiadas solicitudes')) {
-          console.warn('Rate limited, skipping message refresh');
-        }
-      }
+    eventSource.onopen = () => {
+      console.log('[SSE] Connected to real-time events');
+      setSseConnected(true);
     };
 
-    const checkNewOrders = async () => {
-      if (active !== 'orders') return; // Only poll when on orders tab
-      try {
-        await loadOrders();
-      } catch (err) {
-        if (err.message?.includes('Demasiadas solicitudes')) {
-          console.warn('Rate limited, skipping order refresh');
-        }
-      }
+    eventSource.addEventListener('new_order', (event) => {
+      const payload = JSON.parse(event.data);
+      console.log('[SSE] New order received:', payload.data);
+      
+      // Increment unread counter
+      setUnreadOrders(prev => prev + 1);
+      
+      // Show toast notification
+      toast.success(
+        `🛍️ New order: ${payload.data.orderNumber} - $${payload.data.total.toFixed(2)}`,
+        5000
+      );
+    });
+
+    eventSource.addEventListener('new_message', (event) => {
+      const payload = JSON.parse(event.data);
+      console.log('[SSE] New message received:', payload.data);
+      
+      // Increment unread counter
+      setUnreadMessages(prev => prev + 1);
+      
+      // Show toast notification
+      toast.success(
+        `📧 New message from ${payload.data.name}`,
+        5000
+      );
+    });
+
+    eventSource.onerror = (error) => {
+      console.error('[SSE] Connection error:', error);
+      setSseConnected(false);
+      // EventSource auto-reconnects, so we just log the error
     };
 
-    const checkSellados = async () => {
-      if (active !== 'sellados') return; // Only poll when on sellados tab
-      try {
-        const data = await api.products.getAll();
-        if (Array.isArray(data)) {
-          setSellados(prev => {
-            // Preserve locally created/edited items that haven't been saved yet
-            const localItems = prev.filter(item => item.isNew);
-            const backendItems = data.filter(backendItem =>
-              !localItems.some(local => local.id === backendItem.id)
-            );
-            const merged = [...localItems, ...backendItems];
-            const hasChanges = JSON.stringify(prev) !== JSON.stringify(merged);
-            return hasChanges ? merged : prev;
-          });
-        }
-      } catch (err) {
-        if (err.message?.includes('Demasiadas solicitudes')) {
-          console.warn('Rate limited, skipping sellados refresh');
-        } else {
-          console.error('Error refreshing sellados:', err);
-        }
+    // Cleanup on unmount
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        console.log('[SSE] Disconnected');
       }
     };
+  }, [toast]);
 
-    const checkCards = async () => {
-      if (active !== 'cards') return; // Only poll when on cards tab
-      try {
-        const data = await api.cards.getAll();
-        if (Array.isArray(data)) {
-          setCards(prev => {
-            // Preserve locally created/edited items that haven't been saved yet
-            const localItems = prev.filter(item => item.isNew);
-            const backendItems = data.filter(backendItem =>
-              !localItems.some(local => local.id === backendItem.id)
-            );
-            const merged = [...localItems, ...backendItems];
-            const hasChanges = JSON.stringify(prev) !== JSON.stringify(merged);
-            return hasChanges ? merged : prev;
-          });
-        }
-      } catch (err) {
-        if (err.message?.includes('Demasiadas solicitudes')) {
-          console.warn('Rate limited, skipping cards refresh');
-        } else {
-          console.error('Error refreshing cards:', err);
-        }
-      }
-    };
-
-    const interval = setInterval(() => {
-      checkNewMessages();
-      checkNewOrders();
-      checkSellados();
-      checkCards();
-    }, POLL_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [active, loadMessages, loadOrders]);
+  // Reset unread counters when viewing the tab
+  useEffect(() => {
+    if (active === 'inbox') {
+      setUnreadMessages(0);
+    }
+    if (active === 'orders') {
+      setUnreadOrders(0);
+    }
+  }, [active]);
 
   useEffect(() => {
     if (inbox.length > 0) {
@@ -2536,8 +2529,10 @@ const Admin = () => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '0.8rem', padding: '0 0.3rem' }}>Secciones</p>
 
         <ul style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-          {sections.map(s => {
+          {AdminSections({ unreadOrders, unreadMessages }).map(s => {
             const pendingCount = s.id === 'orders' ? orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length : 0;
+            const notificationBadge = s.badge || null;
+            
             return (
             <li key={s.id} onClick={() => setActive(s.id)} style={{
               padding: '9px 12px', borderRadius: '7px',
@@ -2553,8 +2548,13 @@ const Admin = () => {
               onMouseLeave={e => { if (active !== s.id) e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
               {s.icon} {s.label}
-              {pendingCount > 0 && (
-                <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>
+              {notificationBadge && (
+                <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto', fontWeight: 'bold' }}>
+                  {notificationBadge}
+                </span>
+              )}
+              {!notificationBadge && pendingCount > 0 && s.id === 'orders' && (
+                <span style={{ background: '#3b82f6', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>
                   {pendingCount}
                 </span>
               )}
