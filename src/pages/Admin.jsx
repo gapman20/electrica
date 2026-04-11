@@ -322,7 +322,7 @@ const Admin = () => {
             const newOrders = stats.pendingOrders - previousOrders;
             console.log(`[Admin] 🛍️ ${newOrders} new order(s) detected`);
             
-            window.Swal.fire({
+            Swal.fire({
               title: '🛍️ New Order(s)!',
               text: `${newOrders} new order(s) since last check`,
               icon: 'success',
@@ -339,7 +339,7 @@ const Admin = () => {
             const newMessages = stats.unreadMessages - previousMessages;
             console.log(`[Admin] 📧 ${newMessages} new message(s) detected`);
             
-            window.Swal.fire({
+            Swal.fire({
               title: '📧 New Message(s)!',
               text: `${newMessages} new message(s) since last check`,
               icon: 'info',
