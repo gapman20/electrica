@@ -304,46 +304,71 @@ const Admin = () => {
   // SSE Real-time notifications setup
   useEffect(() => {
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    console.log('[SSE] Connecting to:', `${API_BASE_URL}/admin/events`);
+    
     const eventSource = new EventSource(`${API_BASE_URL}/admin/events`);
     eventSourceRef.current = eventSource;
 
     eventSource.addEventListener('connected', (event) => {
-      console.log('[SSE] Connected to real-time events');
+      console.log('[SSE] Connected to real-time events successfully');
       setSseConnected(true);
     });
 
     eventSource.addEventListener('new_order', (event) => {
-      const payload = JSON.parse(event.data);
-      console.log('[SSE] New order received:', payload.data);
-      
-      // Increment unread counter
-      setUnreadOrders(prev => prev + 1);
-      
-      // Show toast notification
-      if (toast) {
-        toast.success(
-          `🛍️ New order: ${payload.data.orderNumber} - $${payload.data.total.toFixed(2)}`
-        );
+      try {
+        const payload = JSON.parse(event.data);
+        console.log('[SSE] 🔔 New order received:', payload);
+        
+        // Increment unread counter
+        setUnreadOrders(prev => prev + 1);
+        
+        // Show toast notification
+        if (window.Swal) {
+          window.Swal.fire({
+            title: '🛍️ New Order!',
+            text: `Order: ${payload.data.orderNumber} - $${payload.data.total.toFixed(2)}`,
+            icon: 'success',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 5000,
+            timerProgressBar: true,
+            background: '#10b981',
+            color: '#fff'
+          });
+        }
+      } catch (err) {
+        console.error('[SSE] Error parsing order event:', err, event.data);
       }
     });
 
     eventSource.addEventListener('new_message', (event) => {
-      const payload = JSON.parse(event.data);
-      console.log('[SSE] New message received:', payload.data);
-      
-      // Increment unread counter
-      setUnreadMessages(prev => prev + 1);
-      
-      // Show toast notification
-      if (toast) {
-        toast.success(
-          `📧 New message from ${payload.data.name}`
-        );
+      try {
+        const payload = JSON.parse(event.data);
+        console.log('[SSE] 📧 New message received:', payload);
+        
+        setUnreadMessages(prev => prev + 1);
+        
+        if (window.Swal) {
+          window.Swal.fire({
+            title: '📧 New Message!',
+            text: `From: ${payload.data.name}`,
+            icon: 'info',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 5000,
+            background: '#3b82f6',
+            color: '#fff'
+          });
+        }
+      } catch (err) {
+        console.error('[SSE] Error parsing message event:', err, event.data);
       }
     });
 
     eventSource.onerror = (error) => {
-      console.error('[SSE] Connection error:', error);
+      console.warn('[SSE] Connection lost, will auto-reconnect:', error);
       setSseConnected(false);
     };
 
@@ -2556,31 +2581,49 @@ const Admin = () => {
 
         <ul style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
           {AdminSections({ unreadOrders, unreadMessages }).map(s => {
-            const pendingCount = s.id === 'orders' ? orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length : 0;
+            const pendingCount = s.id === 'orders' ? orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED').length : 0;
             const notificationBadge = s.badge || null;
+            const isActive = active === s.id;
             
             return (
             <li key={s.id} onClick={() => setActive(s.id)} style={{
               padding: '9px 12px', borderRadius: '7px',
-              background: active === s.id ? 'rgba(245,158,11,0.15)' : 'transparent',
-              color: active === s.id ? 'var(--accent-gold)' : 'var(--text-secondary)',
-              fontWeight: active === s.id ? '700' : '500',
+              background: isActive ? 'rgba(245,158,11,0.15)' : 'transparent',
+              color: isActive ? 'var(--accent-gold)' : 'var(--text-secondary)',
+              fontWeight: isActive ? '700' : '500',
               fontSize: '0.88rem',
               display: 'flex', alignItems: 'center', gap: '9px', cursor: 'pointer',
-              border: active === s.id ? '1px solid rgba(245,158,11,0.3)' : '1px solid transparent',
+              border: isActive ? '1px solid rgba(245,158,11,0.3)' : '1px solid transparent',
               fontFamily: 'var(--font-heading)', transition: 'all 0.15s',
             }}
-              onMouseEnter={e => { if (active !== s.id) e.currentTarget.style.color = 'white'; }}
-              onMouseLeave={e => { if (active !== s.id) e.currentTarget.style.color = 'var(--text-secondary)'; }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'white'; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
               {s.icon} {s.label}
               {notificationBadge && (
-                <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto', fontWeight: 'bold' }}>
+                <span style={{ 
+                  background: isActive ? '#10b981' : '#ef4444', 
+                  color: '#fff', 
+                  fontSize: '0.7rem', 
+                  padding: '2px 6px', 
+                  borderRadius: '10px', 
+                  marginLeft: 'auto', 
+                  fontWeight: 'bold',
+                  transition: 'background 0.3s'
+                }}>
                   {notificationBadge}
                 </span>
               )}
               {!notificationBadge && pendingCount > 0 && s.id === 'orders' && (
-                <span style={{ background: '#3b82f6', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>
+                <span style={{ 
+                  background: isActive ? '#10b981' : '#3b82f6', 
+                  color: '#fff', 
+                  fontSize: '0.7rem', 
+                  padding: '2px 6px', 
+                  borderRadius: '10px', 
+                  marginLeft: 'auto',
+                  transition: 'background 0.3s'
+                }}>
                   {pendingCount}
                 </span>
               )}
