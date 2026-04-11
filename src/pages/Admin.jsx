@@ -307,10 +307,10 @@ const Admin = () => {
     const eventSource = new EventSource(`${API_BASE_URL}/admin/events`);
     eventSourceRef.current = eventSource;
 
-    eventSource.onopen = () => {
+    eventSource.addEventListener('connected', (event) => {
       console.log('[SSE] Connected to real-time events');
       setSseConnected(true);
-    };
+    });
 
     eventSource.addEventListener('new_order', (event) => {
       const payload = JSON.parse(event.data);
@@ -320,10 +320,11 @@ const Admin = () => {
       setUnreadOrders(prev => prev + 1);
       
       // Show toast notification
-      toast.success(
-        `🛍️ New order: ${payload.data.orderNumber} - $${payload.data.total.toFixed(2)}`,
-        5000
-      );
+      if (toast) {
+        toast.success(
+          `🛍️ New order: ${payload.data.orderNumber} - $${payload.data.total.toFixed(2)}`
+        );
+      }
     });
 
     eventSource.addEventListener('new_message', (event) => {
@@ -334,16 +335,16 @@ const Admin = () => {
       setUnreadMessages(prev => prev + 1);
       
       // Show toast notification
-      toast.success(
-        `📧 New message from ${payload.data.name}`,
-        5000
-      );
+      if (toast) {
+        toast.success(
+          `📧 New message from ${payload.data.name}`
+        );
+      }
     });
 
     eventSource.onerror = (error) => {
       console.error('[SSE] Connection error:', error);
       setSseConnected(false);
-      // EventSource auto-reconnects, so we just log the error
     };
 
     // Cleanup on unmount
@@ -353,7 +354,32 @@ const Admin = () => {
         console.log('[SSE] Disconnected');
       }
     };
-  }, [toast]);
+  }, []);
+
+  // Load initial badge counts
+  useEffect(() => {
+    const loadBadgeCounts = async () => {
+      try {
+        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/orders/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const stats = await response.json();
+          setUnreadOrders(stats.pendingOrders);
+          setUnreadMessages(stats.unreadMessages);
+          console.log(`[Admin] Loaded badge counts: ${stats.pendingOrders} orders, ${stats.unreadMessages} messages`);
+        }
+      } catch (error) {
+        console.error('[Admin] Error loading badge counts:', error);
+      }
+    };
+
+    loadBadgeCounts();
+  }, []);
 
   // Reset unread counters when viewing the tab
   useEffect(() => {
