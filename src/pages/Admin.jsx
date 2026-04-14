@@ -1251,12 +1251,12 @@ const Admin = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Precio ($)</label>
-                        <input type="number" value={selectedSellado.price} onChange={e => updateSellado(selectedSellado.id, 'price', parseFloat(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" step="0.01" />
+                        <input type="number" step="any" value={selectedSellado.price || ''} onChange={e => updateSellado(selectedSellado.id, 'price', parseFloat(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0.00" />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>% Descuento</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input type="number" value={selectedSellado.discountPercent || 0} onChange={e => updateSellado(selectedSellado.id, 'discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" max="99" />
+                          <input type="number" step="1" value={selectedSellado.discountPercent || ''} onChange={e => updateSellado(selectedSellado.id, 'discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
                           <span style={{ color: 'var(--text-secondary)', fontSize: '1.2rem' }}>%</span>
                         </div>
                         {selectedSellado.discountPercent > 0 && (
@@ -1267,7 +1267,7 @@ const Admin = () => {
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Stock</label>
-                        <input type="number" value={selectedSellado.stock} onChange={e => updateSellado(selectedSellado.id, 'stock', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" />
+                        <input type="number" step="1" value={selectedSellado.stock || ''} onChange={e => updateSellado(selectedSellado.id, 'stock', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
                       </div>
                     </div>
 
@@ -1600,11 +1600,11 @@ const Admin = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Precio ($)</label>
-                        <input type="number" value={selectedCard.price} onChange={e => updateCard(selectedCard.id, 'price', parseFloat(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" step="0.01" />
+                        <input type="number" step="any" value={selectedCard.price || ''} onChange={e => updateCard(selectedCard.id, 'price', parseFloat(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0.00" />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Stock</label>
-                        <input type="number" value={selectedCard.stock} onChange={e => updateCard(selectedCard.id, 'stock', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" />
+                        <input type="number" step="1" value={selectedCard.stock || ''} onChange={e => updateCard(selectedCard.id, 'stock', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
                       </div>
                     </div>
 
@@ -1865,7 +1865,7 @@ const Admin = () => {
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>% Descuento</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input type="number" value={selectedCampaign.discountPercent} onChange={e => updateCampaign(selectedCampaign.id, 'discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="1" max="99" />
+                          <input type="number" step="1" value={selectedCampaign.discountPercent || ''} onChange={e => updateCampaign(selectedCampaign.id, 'discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
                           <span style={{ color: 'var(--text-secondary)', fontSize: '1.2rem' }}>%</span>
                         </div>
                       </div>

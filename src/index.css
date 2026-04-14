@@ -3577,6 +3577,16 @@ main {
   color: var(--text-primary);
 }
 
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 .catalog-actions {
   display: flex;
   gap: 0.75rem;
