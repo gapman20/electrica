@@ -545,8 +545,10 @@ const Admin = () => {
     
     if (selectedGame === 'pokemon') {
       try {
-        // Fetch full card details from TCGdex
         const fullCard = await tcgdexApi.getCardById(card.id);
+        
+        // Get price from TCGdex (EUR)
+        const price = fullCard.pricing?.cardmarket?.avg || 0;
         
         newCard = {
           id: `card-${Date.now()}`,
@@ -555,8 +557,8 @@ const Admin = () => {
           set: fullCard.set?.name || 'Unknown Set',
           setCode: fullCard.set?.id || card.id?.split('-')[0],
           rarity: fullCard.rarity?.toLowerCase() || 'rare',
-          price: 0,
-          priceFoil: null,
+          price: price,
+          priceFoil: fullCard.pricing?.cardmarket?.avgHolofoil || fullCard.pricing?.cardmarket?.lowHolo || null,
           stock: 1,
           active: true,
           description: fullCard.description || fullCard.attacks?.[0]?.effect || '',
@@ -566,6 +568,7 @@ const Admin = () => {
         };
       } catch (e) {
         console.error('Error fetching card details:', e);
+        
         // Fallback to basic data
         newCard = {
           id: `card-${Date.now()}`,
@@ -579,7 +582,6 @@ const Admin = () => {
           active: true,
           imageUrl: card.image,
           condition: 'NM',
-          tcgdexId: card.id,
         };
       }
     } else {
@@ -1472,19 +1474,26 @@ const Admin = () => {
                     {searchResults.slice(0, 10).map(card => (
                       <div key={card.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.75rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                         <div style={{ width: '50px', height: '70px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.05)' }}>
-                          {card.image_uris?.small ? (
-                            <img src={card.image_uris.small} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {card.image || card.image_uris?.small ? (
+                            <img src={card.image || card.image_uris?.small} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             <Layers size={20} color="var(--glass-border)" style={{ margin: '25px auto', display: 'block' }} />
                           )}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.name}</p>
-                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{card.set_name} • {card.rarity}</p>
-                          <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
-                            ${card.prices?.usd || '0.00'}
-                            {card.prices?.usd_foil && <span style={{ color: 'var(--text-secondary)', fontWeight: '400' }}> / foil: ${card.prices.usd_foil}</span>}
-                          </p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{(card.set?.name || card.set_name) || 'Unknown Set'} • {card.rarity || card.set_name || 'Rare'}</p>
+                          {selectedGame === 'magic' ? (
+                            <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
+                              ${card.prices?.usd || '0.00'}
+                            </p>
+                          ) : (
+                            card.pricing?.cardmarket?.avg && (
+                              <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
+                                €{card.pricing.cardmarket.avg}
+                              </p>
+                            )
+                          )}
                         </div>
                         <button 
                           onClick={() => importCard(card)}
