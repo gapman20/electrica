@@ -164,10 +164,10 @@ const Catalog = () => {
   const [selectedRarity, setSelectedRarity] = useState('all');
   const [sortBy, setSortBy] = useState('name-asc');
   const [showFilters, setShowFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
     const loadCards = async () => {
@@ -203,8 +203,8 @@ const Catalog = () => {
       filtered = filtered.filter(c => c.rarity === selectedRarity);
     }
     
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+    if (searchText) {
+      const query = searchText.toLowerCase();
       filtered = filtered.filter(c => 
         c.name.toLowerCase().includes(query) ||
         c.set.toLowerCase().includes(query)
@@ -229,7 +229,7 @@ const Catalog = () => {
     }
     
     return filtered;
-  }, [cardsData, selectedGame, selectedRarity, sortBy, searchQuery]);
+  }, [cardsData, selectedGame, selectedRarity, sortBy, searchText]);
 
   const handleAddToCart = (card) => {
     addItem({
@@ -253,7 +253,7 @@ const Catalog = () => {
   const activeFiltersCount = [
     selectedGame !== 'all',
     selectedRarity !== 'all',
-    searchQuery !== ''
+    searchText !== ''
   ].filter(Boolean).length;
 
   return (
@@ -294,11 +294,11 @@ const Catalog = () => {
             <input
               type="text"
               placeholder="Buscar carta..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
             />
-            {searchQuery && (
-              <button className="search-clear" onClick={() => setSearchQuery('')}>
+            {searchText && (
+              <button className="search-clear" onClick={() => setSearchText('')}>
                 <X size={18} />
               </button>
             )}
