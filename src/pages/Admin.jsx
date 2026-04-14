@@ -272,6 +272,22 @@ const Admin = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
+  
+  // Auto-search in external APIs as you type (500ms debounce)
+  const searchTimeoutRef = useRef(null);
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      if (searchQuery.trim()) {
+        handleCardSearch();
+      }
+    }, 500);
+    return () => clearTimeout(searchTimeoutRef.current);
+  }, [searchQuery]);
   const lastMessageId = React.useRef(null);
   const lastMessageDate = React.useRef(null);
   const lastOrderId = React.useRef(null);
@@ -514,8 +530,8 @@ const Admin = () => {
           setSearchResults([]);
         }
       } else {
-        const query = `${searchQuery} game:${selectedGame}`;
-        const result = await scryfallApi.searchCards(query, { limit: 20 });
+        const apiQuery = `${searchQuery} game:${selectedGame}`;
+        const result = await scryfallApi.searchCards(apiQuery, { limit: 20 });
         if (result.data) {
           setSearchResults(result.data);
         } else if (result.Results) {
@@ -1409,8 +1425,8 @@ const Admin = () => {
                   type="text" 
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleCardSearch()}
-                  placeholder={selectedGame === 'pokemon' ? "Buscar carta... (ej: Charizard)" : "Buscar carta... (ej: Black Lotus)"}
+                  
+                  placeholder={selectedGame === 'pokemon' ? "Buscar carta..." : "Buscar carta..."}
                   style={{ ...inputSt, flex: 1 }}
                 />
                 <button 
