@@ -567,7 +567,7 @@ const Admin = () => {
         name: card.name,
         game: selectedGame.charAt(0).toUpperCase() + selectedGame.slice(1),
         set: card.set_name,
-        rarity: card.rarity?.replace(/^\w/, c => c.toUpperCase()) || 'Rare',
+        rarity: card.rarity || 'Rare',
         price: price,
         priceFoil: priceFoil,
         stock: 1,
