@@ -7,6 +7,13 @@ export default defineConfig({
   server: {
     hmr: {
       overlay: false
+    },
+    proxy: {
+      '/api/tcgdex': {
+        target: 'https://api.tcgdex.net/v2/en',
+        changeOrigin: true,
+        rewrite: (path) => path.replace('/api/tcgdex/', '/')
+      }
     }
   }
 })

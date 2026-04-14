@@ -1,12 +1,10 @@
-// Use backend proxy to avoid CORS issues
-const API_URL = import.meta.env.VITE_API_URL || '/api';
-
+// Use Vite proxy to avoid CORS issues
 export default {
   searchCards: async (query, options = {}) => {
     const limit = options.limit || 20;
     
     const response = await fetch(
-      `${API_URL}/tcgdex/pokemon/search?q=${encodeURIComponent(query)}&limit=${limit}`
+      `/api/tcgdex/cards?name=${encodeURIComponent(query)}&pagination:itemsPerPage=${limit}`
     );
     
     if (!response.ok) {
@@ -16,9 +14,8 @@ export default {
     return response.json();
   },
 
-  // Get full card details by ID
   getCardById: async (id) => {
-    const response = await fetch(`${API_URL}/tcgdex/pokemon/card/${id}`);
+    const response = await fetch(`/api/tcgdex/cards/${id}`);
     
     if (!response.ok) {
       throw new Error(`TCGdex API Error: ${response.status}`);
