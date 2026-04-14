@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { OrderProvider } from './OrderContext';
-import { authApi, contactApi } from '../services/api';
+import { authApi, contactApi, cmsApi } from '../services/api';
 
 const AUTH_KEY = 'is_authenticated';
 const ADMIN_PASS_KEY = 'admin_password';
@@ -318,14 +318,14 @@ export const SiteProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 
   useEffect(() => { applyTheme(theme); }, [theme]);
-  useEffect(() => { 
+  useEffect(() => {
     // Only load contact messages for admin users with valid tokens
     const isAdmin = (() => {
       const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
       const savedUser = localStorage.getItem('tcg_user');
-      
+
       if (!token || !savedUser) return false;
-      
+
       try {
         const user = JSON.parse(savedUser);
         return user?.role === 'ADMIN';
@@ -333,10 +333,59 @@ export const SiteProvider = ({ children }) => {
         return false;
       }
     })();
-    
+
     if (isAdmin) {
       loadMessages();
     }
+  }, []);
+
+  // Load content from CMS API on mount (if enabled)
+  useEffect(() => {
+    const loadFromCMS = async () => {
+      if (import.meta.env.VITE_USE_API !== 'true') {
+        return; // Use localStorage only
+      }
+
+      try {
+        console.log('[SiteContext] Loading content from CMS API...');
+
+        const [contentData, blogData, pagesData, themeData] = await Promise.allSettled([
+          cmsApi.content.getAll(),
+          cmsApi.blog.getAll(),
+          cmsApi.pages.getAll(),
+          cmsApi.theme.getAll()
+        ]);
+
+        // Load site content
+        if (contentData.status === 'fulfilled' && contentData.value.content) {
+          console.log('[SiteContext] Loaded site content from CMS');
+          setContent(prev => deepMerge(prev, contentData.value.content));
+        }
+
+        // Load blog posts
+        if (blogData.status === 'fulfilled' && blogData.value.posts) {
+          console.log(`[SiteContext] Loaded ${blogData.value.posts.length} blog posts from CMS`);
+          setBlogPosts(blogData.value.posts);
+        }
+
+        // Load pages
+        if (pagesData.status === 'fulfilled' && pagesData.value.pages) {
+          console.log(`[SiteContext] Loaded ${pagesData.value.pages.length} pages from CMS`);
+          setPages(pagesData.value.pages);
+        }
+
+        // Load theme
+        if (themeData.status === 'fulfilled' && themeData.value.theme) {
+          console.log('[SiteContext] Loaded theme from CMS');
+          setTheme(prev => ({ ...prev, ...themeData.value.theme }));
+        }
+      } catch (error) {
+        console.warn('[SiteContext] Failed to load from CMS API, using localStorage:', error);
+        // Silently fall back to localStorage (already loaded)
+      }
+    };
+
+    loadFromCMS();
   }, []);
 
   const updateContent = (path, value) => {
@@ -368,7 +417,7 @@ export const SiteProvider = ({ children }) => {
 
   const createBlogPost = () => {
     const newPost = {
-      id:        `post-${Date.now()}`,
+      id:        `post-new-${Date.now()}`,
       title:     'Nuevo Artículo',
       excerpt:   'Escribe aquí un resumen del artículo...',
       content:   'Escribe el contenido completo del artículo aquí...',
@@ -377,6 +426,7 @@ export const SiteProvider = ({ children }) => {
       image:     null,
       tags:      '',
       published: false,
+      isNew:     true,
     };
     setBlogPosts(prev => [newPost, ...prev]);
     return newPost.id;
@@ -394,14 +444,20 @@ export const SiteProvider = ({ children }) => {
     setBlogPosts(prev => {
       const original = prev.find(p => p.id === id);
       if (!original) return prev;
-      const copy = { ...original, id: `post-${Date.now()}`, title: `${original.title} (copia)`, published: false };
+      const copy = { 
+        ...original, 
+        id: `post-new-${Date.now()}`, 
+        title: `${original.title} (copia)`, 
+        published: false,
+        isNew: true,
+      };
       return [copy, ...prev];
     });
   };
 
   const createPage = () => {
     const newPage = {
-      id:          `page-${Date.now()}`,
+      id:          `page-new-${Date.now()}`,
       name:        'Nueva Página',
       path:        `/nueva-pagina-${Date.now().toString().slice(-4)}`,
       active:      false,
@@ -409,7 +465,8 @@ export const SiteProvider = ({ children }) => {
       pageTitle:   'Título de tu nueva página',
       pageSubtitle:'Describe brevemente de qué trata esta página.',
       pageText:    'Escribe aquí todo lo que quieras contar. Puedes presionar "Enter" para crear nuevos párrafos.',
-      pageImage:   null
+      pageImage:   null,
+      isNew:       true,
     };
     setPages(prev => [...prev, newPage]);
     return newPage.id;
@@ -619,7 +676,8 @@ export const SiteProvider = ({ children }) => {
   const saveContent = async () => {
     try {
       setSaveStatus('saving');
-      
+
+      // Always save to localStorage as backup
       localStorage.setItem(CONTENT_KEY, JSON.stringify(content));
       localStorage.setItem(IMAGES_KEY,  JSON.stringify(images));
       localStorage.setItem(THEME_KEY,   JSON.stringify(theme));
@@ -628,7 +686,42 @@ export const SiteProvider = ({ children }) => {
       localStorage.setItem(PRODS_KEY,   JSON.stringify(products));
       localStorage.setItem(ANALYTICS_KEY,JSON.stringify(analytics));
       localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(campaigns));
-      
+
+      // If API mode is enabled, also save to backend
+      if (import.meta.env.VITE_USE_API === 'true') {
+        try {
+          await Promise.all([
+            cmsApi.content.update(content),
+            cmsApi.theme.update(theme)
+          ]);
+
+          // Sync blog posts
+          for (const post of blogPosts) {
+            if (post.isNew || post.id.startsWith('post-new-')) {
+              const { isNew, ...postData } = post;
+              await cmsApi.blog.create(postData);
+            } else {
+              await cmsApi.blog.update(post.id, post);
+            }
+          }
+
+          // Sync pages
+          for (const page of pages) {
+            if (page.isNew || page.id.startsWith('page-new-')) {
+              const { isNew, ...pageData } = page;
+              await cmsApi.pages.create(pageData);
+            } else {
+              await cmsApi.pages.update(page.id, page);
+            }
+          }
+
+          console.log('[SiteContext] Content saved to CMS API successfully');
+        } catch (apiError) {
+          console.warn('[SiteContext] CMS API save failed, but localStorage was updated:', apiError);
+          // Don't fail the whole save if API fails - localStorage is our backup
+        }
+      }
+
       setSaveStatus('saved');
     } catch (error) {
       console.error("Error saving content:", error);

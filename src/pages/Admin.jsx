@@ -247,6 +247,9 @@ const Admin = () => {
   const [newSelladoId, setNewSelladoId] = useState(null);
   const [savingSellado, setSavingSellado] = useState(false);
 
+  // Dashboard state
+  const [dashboardPeriod, setDashboardPeriod] = useState('Hoy');
+
   // Campaigns state
   const [editingCampaign, setEditingCampaign] = useState(null);
 
@@ -270,18 +273,26 @@ const Admin = () => {
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState('all');
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({ PENDING: 0, PROCESSING: 0, SHIPPED: 0, DELIVERED: 0, CANCELLED: 0 });
+  const ORDER_LIMIT = 10;
 
   // Load orders from API (only update if there are changes)
   const loadOrders = async (showLoading = false) => {
     if (showLoading) setOrdersLoading(true);
     try {
-      const data = await orderApi.getAll();
-      const newOrders = data || [];
-      
+      const params = { page: orderPage, limit: ORDER_LIMIT };
+      if (orderFilter !== 'all') params.status = orderFilter;
+      const data = await orderApi.getAll(params);
+      const newOrders = data.orders || [];
+      const total = data.pagination?.total || 0;
+      setOrderTotal(total);
+
       // Only update if there are actual changes (different length or different IDs)
       const currentIds = orders.map(o => o.id).sort().join(',');
       const newIds = newOrders.map(o => o.id).sort().join(',');
-      
+
       if (currentIds !== newIds) {
         setOrders(newOrders);
       }
@@ -292,14 +303,43 @@ const Admin = () => {
     }
   };
 
+  // Load total count for each status from the server
+  const loadStatusCounts = async () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      const statuses = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+      const results = await Promise.all(
+        statuses.map(async (status) => {
+          const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/orders?page=1&limit=1&status=${status}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await resp.json();
+          return [status, data.pagination?.total || 0];
+        })
+      );
+      // Also get the grand total (all statuses)
+      const allResp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/orders?page=1&limit=1`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const allData = await allResp.json();
+      const allTotal = allData.pagination?.total || 0;
+
+      setStatusCounts(Object.fromEntries(results));
+      setOrderTotal(orderFilter === 'all' ? allTotal : (Object.fromEntries(results)[orderFilter] || 0));
+    } catch (err) {
+      console.error('Error loading status counts:', err);
+    }
+  };
+
   useEffect(() => {
     if (active === 'inbox') {
       loadMessages();
     }
     if (active === 'orders') {
       loadOrders(true);
+      loadStatusCounts();
     }
-  }, [active]);
+  }, [active, orderPage, orderFilter]);
 
   // Poll badge counts every 15 seconds and show notifications when counts increase
   useEffect(() => {
@@ -433,7 +473,8 @@ const Admin = () => {
       } else if (lastOrderId.current !== latestOrder.id) {
         const currentDate = new Date(latestOrder.createdAt);
         const previousDate = lastOrderDate.current ? new Date(lastOrderDate.current) : null;
-        if (!previousDate || currentDate > previousDate) {
+        const isNew = Date.now() - currentDate.getTime() < 2 * 60 * 1000; // within 2 minutes
+        if (isNew && (!previousDate || currentDate > previousDate)) {
           const total = latestOrder.total || latestOrder.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
           toast.success(`Nuevo pedido #${latestOrder.orderNumber}: $${Number(total).toLocaleString('es-MX')} MXN`);
         }
@@ -872,13 +913,13 @@ const Admin = () => {
             
             {/* Period Filter */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-              {['Hoy', 'Esta Semana', 'Este Mes'].map((period, i) => (
-                <button key={period} style={{
+              {['Hoy', 'Esta Semana', 'Este Mes'].map((period) => (
+                <button key={period} onClick={() => setDashboardPeriod(period)} style={{
                   padding: '8px 16px',
-                  background: i === 1 ? 'var(--accent-gold)' : 'var(--glass-bg)',
+                  background: dashboardPeriod === period ? 'var(--accent-gold)' : 'var(--glass-bg)',
                   border: '1px solid var(--glass-border)',
                   borderRadius: '8px',
-                  color: i === 1 ? 'white' : 'var(--text-secondary)',
+                  color: dashboardPeriod === period ? 'white' : 'var(--text-secondary)',
                   fontWeight: '600',
                   cursor: 'pointer',
                   fontSize: '0.85rem'
@@ -900,9 +941,15 @@ const Admin = () => {
 
             {/* Orders Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-              <StatCard label="Pedidos Hoy" val={todayOrders.length} sub="Últimas 24h" color="#25d366" Icon={BarChart2} />
-              <StatCard label="Pedidos Semana" val={weekOrders.length} sub="Últimos 7 días" color="#3b82f6" Icon={BarChart2} />
-              <StatCard label="Pedidos Mes" val={monthOrders.length} sub="Últimos 30 días" color="#8b5cf6" Icon={BarChart2} />
+              {dashboardPeriod === 'Hoy' && (
+                <StatCard label="Pedidos Hoy" val={todayOrders.length} sub="Últimas 24h" color="#25d366" Icon={BarChart2} />
+              )}
+              {dashboardPeriod === 'Esta Semana' && (
+                <StatCard label="Pedidos Esta Semana" val={weekOrders.length} sub="Últimos 7 días" color="#3b82f6" Icon={BarChart2} />
+              )}
+              {dashboardPeriod === 'Este Mes' && (
+                <StatCard label="Pedidos Este Mes" val={monthOrders.length} sub="Últimos 30 días" color="#8b5cf6" Icon={BarChart2} />
+              )}
               <StatCard label="Total Pedidos" val={dashboardOrders.length} sub="Registrados" color="#f59e0b" Icon={BarChart2} />
             </div>
 
@@ -2382,7 +2429,7 @@ const Admin = () => {
               <>
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                   {['all', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map(filter => (
-                    <button key={filter} onClick={() => setOrderFilter(filter)} style={{
+                    <button key={filter} onClick={() => { setOrderFilter(filter); setOrderPage(1); }} style={{
                       padding: '8px 16px',
                       background: orderFilter === filter ? 'var(--accent-gold)' : 'var(--glass-bg)',
                       border: '1px solid',
@@ -2391,23 +2438,98 @@ const Admin = () => {
                       color: orderFilter === filter ? 'white' : 'var(--text-secondary)',
                       fontWeight: '600',
                       cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      textTransform: 'capitalize'
+                      fontSize: '0.8rem'
                     }}>
-                      {filter === 'all' ? 'Todos' : filter.toLowerCase()} 
+                      {filter === 'all' ? 'Todos' : filter === 'PENDING' ? 'pendiente' : filter === 'PROCESSING' ? 'en proceso' : filter === 'SHIPPED' ? 'enviado' : filter === 'DELIVERED' ? 'entregado' : 'cancelado'}
                       {filter !== 'all' && (
                         <span style={{ marginLeft: '4px', opacity: 0.7 }}>
-                          ({orders.filter(o => o.status === filter).length})
+                          ({statusCounts[filter] || 0})
+                        </span>
+                      )}
+                      {filter === 'all' && orderTotal > 0 && (
+                        <span style={{ marginLeft: '4px', opacity: 0.7 }}>
+                          ({Object.values(statusCounts).reduce((a, b) => a + b, 0)})
                         </span>
                       )}
                     </button>
                   ))}
                 </div>
 
+                {/* Pagination */}
+                {orderTotal > ORDER_LIMIT && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '1rem',
+                    padding: '0.75rem 1rem',
+                    background: 'rgba(0,0,0,0.15)',
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: '10px'
+                  }}>
+                    {(() => {
+                      const totalPages = Math.ceil(orderTotal / ORDER_LIMIT);
+                      const pages = [];
+                      const maxVisible = 5;
+                      let startPage = Math.max(1, orderPage - Math.floor(maxVisible / 2));
+                      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                      if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+
+                      for (let i = startPage; i <= endPage; i++) pages.push(i);
+
+                      return (
+                        <>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            Mostrando {((orderPage - 1) * ORDER_LIMIT) + 1}–{Math.min(orderPage * ORDER_LIMIT, orderTotal)} de {orderTotal}
+                          </span>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <button
+                              onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                              disabled={orderPage === 1}
+                              style={{
+                                padding: '4px 10px', borderRadius: '6px',
+                                background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
+                                color: orderPage === 1 ? 'var(--glass-border)' : 'var(--text-primary)',
+                                cursor: orderPage === 1 ? 'default' : 'pointer', fontSize: '0.8rem'
+                              }}
+                            >
+                              ‹
+                            </button>
+                            {pages.map(p => (
+                              <button key={p} onClick={() => setOrderPage(p)} style={{
+                                padding: '4px 10px', borderRadius: '6px', minWidth: '32px',
+                                background: p === orderPage ? 'var(--accent-gold)' : 'var(--glass-bg)',
+                                border: `1px solid ${p === orderPage ? 'var(--accent-gold)' : 'var(--glass-border)'}`,
+                                color: p === orderPage ? 'white' : 'var(--text-primary)',
+                                cursor: 'pointer', fontSize: '0.8rem', fontWeight: p === orderPage ? '700' : '400'
+                              }}>{p}</button>
+                            ))}
+                            <button
+                              onClick={() => setOrderPage(p => Math.min(totalPages, p + 1))}
+                              disabled={orderPage === totalPages}
+                              style={{
+                                padding: '4px 10px', borderRadius: '6px',
+                                background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
+                                color: orderPage === totalPages ? 'var(--glass-border)' : 'var(--text-primary)',
+                                cursor: orderPage === totalPages ? 'default' : 'pointer', fontSize: '0.8rem'
+                              }}
+                            >
+                              ›
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
                 {filteredOrders.length === 0 ? (
                   <div style={{ padding: '3rem', textAlign: 'center', background: 'var(--glass-bg)', border: '1px dashed var(--glass-border)', borderRadius: '12px' }}>
                     <Package size={48} color="var(--glass-border)" style={{ marginBottom: '1rem' }} />
-                    <p style={{ color: 'var(--text-secondary)' }}>No hay pedidos {orderFilter !== 'all' ? `con estado ${orderFilter.toLowerCase()}` : 'registrados'}</p>
+                    <p style={{ color: 'var(--text-secondary)' }}>
+                      No hay pedidos {orderFilter !== 'all' ? `con estado ${orderFilter === 'PENDING' ? 'pendiente' : orderFilter === 'PROCESSING' ? 'en proceso' : orderFilter === 'SHIPPED' ? 'enviado' : orderFilter === 'DELIVERED' ? 'entregado' : 'cancelado'}` : 'registrados'}
+                    </p>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -2438,7 +2560,7 @@ const Admin = () => {
                               color: statusColors[order.status]?.color || '#6b7280',
                               textTransform: 'uppercase'
                             }}>
-                              {order.status}
+                              {order.status === 'PENDING' ? 'Pendiente' : order.status === 'PROCESSING' ? 'En proceso' : order.status === 'SHIPPED' ? 'Enviado' : order.status === 'DELIVERED' ? 'Entregado' : 'Cancelado'}
                             </span>
                             {order.status === 'PENDING' || order.status === 'PROCESSING' ? (
                               <button 
@@ -2571,7 +2693,6 @@ const Admin = () => {
 
         <ul style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
           {AdminSections({ unreadOrders, unreadMessages }).map(s => {
-            const pendingCount = s.id === 'orders' ? orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED').length : 0;
             const notificationBadge = s.badge || null;
             const isActive = active === s.id;
             
@@ -2604,17 +2725,17 @@ const Admin = () => {
                   {notificationBadge}
                 </span>
               )}
-              {!notificationBadge && pendingCount > 0 && s.id === 'orders' && (
-                <span style={{ 
-                  background: isActive ? '#10b981' : '#3b82f6', 
-                  color: '#fff', 
-                  fontSize: '0.7rem', 
-                  padding: '2px 6px', 
-                  borderRadius: '10px', 
+              {!notificationBadge && s.id === 'orders' && unreadOrders > 0 && (
+                <span style={{
+                  background: isActive ? '#10b981' : '#3b82f6',
+                  color: '#fff',
+                  fontSize: '0.7rem',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
                   marginLeft: 'auto',
                   transition: 'background 0.3s'
                 }}>
-                  {pendingCount}
+                  {unreadOrders}
                 </span>
               )}
             </li>

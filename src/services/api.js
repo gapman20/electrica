@@ -152,9 +152,13 @@ export const cartApi = {
 
 // ─── Order API ───────────────────────────────────────────────────────────────
 export const orderApi = {
-  getAll: async () => {
-    const data = await apiRequest('/orders');
-    return data.orders || [];
+  getAll: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', params.page);
+    if (params.limit) query.set('limit', params.limit);
+    if (params.status) query.set('status', params.status);
+    const url = query.toString() ? `/orders?${query}` : '/orders';
+    return await apiRequest(url);
   },
 
   getMyOrders: async () => {
@@ -353,5 +357,75 @@ export const contactApi = {
   },
   delete: async (id) => {
     return await apiRequest(`/contact/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ─── CMS API (Site Content, Blog, Pages, Theme) ──────────────────────────────
+export const cmsApi = {
+  // Site Content
+  content: {
+    getAll: async () => {
+      return await apiRequest('/cms/content');
+    },
+    update: async (content) => {
+      return await apiRequest('/cms/content', { method: 'PUT', body: JSON.stringify(content) });
+    },
+    updateField: async (key, value) => {
+      return await apiRequest(`/cms/content/${key}`, { method: 'PUT', body: JSON.stringify({ value }) });
+    },
+  },
+
+  // Blog Posts
+  blog: {
+    getAll: async (filters = {}) => {
+      const params = new URLSearchParams();
+      if (filters.published) params.append('published', 'true');
+      const query = params.toString();
+      return await apiRequest(`/cms/blog${query ? `?${query}` : ''}`);
+    },
+    getById: async (id) => {
+      return await apiRequest(`/cms/blog/${id}`);
+    },
+    create: async (post) => {
+      return await apiRequest('/cms/blog', { method: 'POST', body: JSON.stringify(post) });
+    },
+    update: async (id, updates) => {
+      return await apiRequest(`/cms/blog/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+    },
+    delete: async (id) => {
+      return await apiRequest(`/cms/blog/${id}`, { method: 'DELETE' });
+    },
+  },
+
+  // Pages
+  pages: {
+    getAll: async (filters = {}) => {
+      const params = new URLSearchParams();
+      if (filters.active) params.append('active', 'true');
+      const query = params.toString();
+      return await apiRequest(`/cms/pages${query ? `?${query}` : ''}`);
+    },
+    getById: async (id) => {
+      return await apiRequest(`/cms/pages/${id}`);
+    },
+    create: async (page) => {
+      return await apiRequest('/cms/pages', { method: 'POST', body: JSON.stringify(page) });
+    },
+    update: async (id, updates) => {
+      return await apiRequest(`/cms/pages/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+    },
+    delete: async (id) => {
+      return await apiRequest(`/cms/pages/${id}`, { method: 'DELETE' });
+    },
+  },
+
+  // Theme
+  theme: {
+    getAll: async () => {
+      return await apiRequest('/cms/theme');
+    },
+    update: async (theme) => {
+      return await apiRequest('/cms/theme', { method: 'PUT', body: JSON.stringify(theme) });
+    },
   },
 };
