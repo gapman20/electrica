@@ -18,6 +18,13 @@ import {
   Truck
 } from 'lucide-react';
 
+const getMonday = (date) => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+};
+
 const showDeleteAlert = (itemType = 'este elemento') => {
   return Swal.fire({
     title: '¿Eliminar?',
@@ -249,6 +256,7 @@ const Admin = () => {
 
   // Dashboard state
   const [dashboardPeriod, setDashboardPeriod] = useState('Hoy');
+  const [dashboardOrders, setDashboardOrders] = useState([]);
 
   // Campaigns state
   const [editingCampaign, setEditingCampaign] = useState(null);
@@ -279,10 +287,10 @@ const Admin = () => {
   const ORDER_LIMIT = 10;
 
   // Load orders from API (only update if there are changes)
-  const loadOrders = async (showLoading = false) => {
+  const loadOrders = async (showLoading = false, customLimit = null) => {
     if (showLoading) setOrdersLoading(true);
     try {
-      const params = { page: orderPage, limit: ORDER_LIMIT };
+      const params = { page: 1, limit: customLimit || ORDER_LIMIT };
       if (orderFilter !== 'all') params.status = orderFilter;
       const data = await orderApi.getAll(params);
       const newOrders = data.orders || [];
@@ -335,11 +343,18 @@ const Admin = () => {
     if (active === 'inbox') {
       loadMessages();
     }
-    if (active === 'orders') {
-      loadOrders(true);
-      loadStatusCounts();
+    if (active === 'orders' || active === 'dashboard') {
+      loadOrders(true, active === 'dashboard' ? 100 : null);
+      if (active === 'orders') loadStatusCounts();
     }
   }, [active, orderPage, orderFilter]);
+
+  // Sync orders to dashboardOrders when loaded
+  useEffect(() => {
+    if (active === 'dashboard' && orders.length > 0) {
+      setDashboardOrders(orders);
+    }
+  }, [orders, active]);
 
   // Poll badge counts every 15 seconds and show notifications when counts increase
   useEffect(() => {
@@ -882,12 +897,13 @@ const Admin = () => {
         const now = new Date();
         const todayOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
-          return orderDate.toDateString() === now.toDateString();
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          return orderDate >= todayStart;
         });
         const weekOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          return orderDate >= weekAgo;
+          const monday = getMonday(now);
+          return orderDate >= monday;
         });
         const monthOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
@@ -945,7 +961,7 @@ const Admin = () => {
                 <StatCard label="Pedidos Hoy" val={todayOrders.length} sub="Últimas 24h" color="#25d366" Icon={BarChart2} />
               )}
               {dashboardPeriod === 'Esta Semana' && (
-                <StatCard label="Pedidos Esta Semana" val={weekOrders.length} sub="Últimos 7 días" color="#3b82f6" Icon={BarChart2} />
+                <StatCard label="Pedidos Esta Semana" val={weekOrders.length} sub="Lunes - Domingo" color="#3b82f6" Icon={BarChart2} />
               )}
               {dashboardPeriod === 'Este Mes' && (
                 <StatCard label="Pedidos Este Mes" val={monthOrders.length} sub="Últimos 30 días" color="#8b5cf6" Icon={BarChart2} />
