@@ -4,7 +4,8 @@ import { useSite } from '../context/SiteContext';
 import { useToast } from '../components/Toast';
 import ImageUploader from '../components/ImageUploader';
 import scryfallApi from '../services/scryfallApi';
-import pokemonTcgApi, { formatPokemonCard } from '../services/pokemonTcgApi';
+import tcgdexApi from '../services/tcgdexApi';
+import pokemonTcgApi from '../services/pokemonTcgApi';
 import api, { getGameValue, orderApi } from '../services/api';
 import Swal from 'sweetalert2';
 import {
@@ -523,9 +524,11 @@ const Admin = () => {
     
     try {
       if (selectedGame === 'pokemon') {
-        const result = await pokemonTcgApi.searchCards(searchQuery, { limit: 20 });
-        setSearchResults(result.data || []);
+        // Use TCGdex API (free, open source)
+        const result = await tcgdexApi.searchCards(searchQuery, { limit: 20 });
+        setSearchResults(result || []);
       } else {
+        // Use Scryfall for Magic
         const result = await scryfallApi.searchCards(`${searchQuery} game:${selectedGame}`, { limit: 20 });
         setSearchResults(result.data || result.Results || []);
       }
@@ -541,13 +544,44 @@ const Admin = () => {
     let newCard;
     
     if (selectedGame === 'pokemon') {
-      const formatted = formatPokemonCard(card);
-      newCard = {
-        ...formatted,
-        id: `card-${Date.now()}`,
-        price: typeof formatted.price === 'number' ? formatted.price : parseFloat(formatted.price) || 0,
-        imageUrl: formatted.image,
-      };
+      try {
+        // Fetch full card details from TCGdex
+        const fullCard = await tcgdexApi.getCardById(card.id);
+        
+        newCard = {
+          id: `card-${Date.now()}`,
+          name: fullCard.name,
+          game: 'Pokemon',
+          set: fullCard.set?.name || 'Unknown Set',
+          setCode: fullCard.set?.id || card.id?.split('-')[0],
+          rarity: fullCard.rarity?.toLowerCase() || 'rare',
+          price: 0,
+          priceFoil: null,
+          stock: 1,
+          active: true,
+          description: fullCard.description || fullCard.attacks?.[0]?.effect || '',
+          imageUrl: fullCard.image,
+          condition: 'NM',
+          tcgdexId: fullCard.id,
+        };
+      } catch (e) {
+        console.error('Error fetching card details:', e);
+        // Fallback to basic data
+        newCard = {
+          id: `card-${Date.now()}`,
+          name: card.name,
+          game: 'Pokemon',
+          set: 'Unknown Set',
+          rarity: 'rare',
+          price: 0,
+          priceFoil: null,
+          stock: 1,
+          active: true,
+          imageUrl: card.image,
+          condition: 'NM',
+          tcgdexId: card.id,
+        };
+      }
     } else {
       const price = card.prices?.usd ? parseFloat(card.prices.usd) : 0;
       const priceFoil = card.prices?.usd_foil ? parseFloat(card.prices.usd_foil) : null;
