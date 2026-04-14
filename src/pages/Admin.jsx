@@ -522,28 +522,10 @@ const Admin = () => {
     setSearchResults([]);
     
     try {
-      // Use Scrydex API
-      const apiKey = import.meta.env.VITE_SCRYDEX_API_KEY;
-      
-      if (apiKey && apiKey !== 'your_scrydex_api_key') {
-        // Scrydex API
-        const game = selectedGame === 'pokemon' ? 'pokemon' : 'tcg';
-        const response = await fetch(
-          `https://api.scrydex.com/${game}/v1/cards?q=${encodeURIComponent(searchQuery)}&pageSize=20`,
-          { headers: { 'X-Api-Key': apiKey } }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setSearchResults(data.data || []);
-        } else {
-          setSearchResults([]);
-        }
-      } else if (selectedGame === 'pokemon') {
-        // Fallback to Pokemon TCG API
+      if (selectedGame === 'pokemon') {
         const result = await pokemonTcgApi.searchCards(searchQuery, { limit: 20 });
         setSearchResults(result.data || []);
       } else {
-        // Fallback to Scryfall
         const result = await scryfallApi.searchCards(`${searchQuery} game:${selectedGame}`, { limit: 20 });
         setSearchResults(result.data || result.Results || []);
       }
