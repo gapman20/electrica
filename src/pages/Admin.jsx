@@ -656,6 +656,31 @@ const Admin = () => {
       };
     }
     
+    // Check if card already exists by name and set
+    const existingCard = cards.find(c => 
+      c.name?.toLowerCase() === newCard.name?.toLowerCase() && 
+      c.set?.toLowerCase() === newCard.set?.toLowerCase()
+    );
+    
+    if (existingCard) {
+      const result = await Swal.fire({
+        title: '⚠️ Carta duplicada',
+        text: `"${newCard.name}" de "${newCard.set}" ya existe en tu inventario. ¿Querés importarla de todas formas?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, importar',
+        cancelButtonText: 'Cancelar',
+        background: 'rgba(15, 23, 42, 0.95)',
+        color: '#fff',
+      });
+      
+      if (!result.isConfirmed) {
+        return;
+      }
+    }
+    
     try {
       const created = await api.cards.create(newCard);
       const cardWithId = created.id ? created : newCard;
