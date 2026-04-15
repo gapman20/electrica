@@ -1,9 +1,7 @@
 // Currency conversion - uses backend proxy to avoid CORS issues
 // Data from European Central Bank via Frankfurter API
 
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api` 
-  : 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Cache the exchange rate to avoid excessive API calls
 let cachedRate = null;
