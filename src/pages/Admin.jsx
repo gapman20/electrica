@@ -276,7 +276,24 @@ const Admin = () => {
   const [searchResultsImages, setSearchResultsImages] = useState({});
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
+  const [exchangeRate, setExchangeRate] = useState(null);
   const searchInProgressRef = useRef(false);
+  
+  // Load exchange rate on mount
+  useEffect(() => {
+    currencyApi.getExchangeRate().then(rate => setExchangeRate(rate));
+  }, []);
+
+  // Helper to format price in MXN
+  const formatPrice = (priceUSD) => {
+    if (!priceUSD || priceUSD === 0) return 'Sin precio';
+    const price = parseFloat(priceUSD);
+    if (exchangeRate) {
+      const mxn = price * exchangeRate;
+      return `$${mxn.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} MXN`;
+    }
+    return `$${price.toFixed(2)} USD`;
+  };
   
   // Auto-search in external APIs as you type (1000ms debounce to avoid rate limits)
   const searchTimeoutRef = useRef(null);
@@ -572,14 +589,16 @@ const Admin = () => {
 
   const importCard = async (card) => {
     let newCard;
+    let priceUSD = 0;
+    let priceFoilUSD = null;
     
     if (selectedGame === 'pokemon') {
-      // From PokéWallet API
+      // From PokéWallet API - prices in USD
       const info = card.card_info || {};
       const tcgPrice = card.tcgplayer?.prices?.[0];
       const cmPrice = card.cardmarket?.prices?.[0];
-      const price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
-      const priceFoil = tcgPrice?.sub_type_name === 'Holofoil' ? tcgPrice?.market_price : null;
+      priceUSD = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+      priceFoilUSD = tcgPrice?.sub_type_name === 'Holofoil' ? tcgPrice?.market_price : null;
       
       newCard = {
         id: `card-${Date.now()}`,
@@ -588,8 +607,11 @@ const Admin = () => {
         set: info.set_name || info.set_code || 'Unknown Set',
         setCode: info.set_code || info.set_id || '',
         rarity: info.rarity?.toLowerCase() || 'rare',
-        price: parseFloat(price).toFixed(2) || '0.00',
-        priceFoil: priceFoil ? parseFloat(priceFoil).toFixed(2) : null,
+        priceUSD: priceUSD,
+        priceFoilUSD: priceFoilUSD,
+        // Calculate MXN prices for storage (based on current exchange rate)
+        price: exchangeRate ? parseFloat((priceUSD * exchangeRate)).toFixed(0) : parseFloat(priceUSD * 20).toFixed(0),
+        priceFoil: priceFoilUSD && exchangeRate ? parseFloat((priceFoilUSD * exchangeRate)).toFixed(0) : null,
         stock: 1,
         active: true,
         description: info.card_text || '',
@@ -599,8 +621,8 @@ const Admin = () => {
         pokemonId: card.id,
       };
     } else if (selectedGame === 'yugioh') {
-      // From TCGdex API
-      const price = card.cardPrices?.[0]?.price || card.price || 0;
+      // From TCGdex API - prices in USD
+      const priceUSD = card.cardPrices?.[0]?.price || card.price || 0;
       newCard = {
         id: `card-${Date.now()}`,
         name: card.name || 'Unknown Card',
@@ -608,7 +630,9 @@ const Admin = () => {
         set: card.set || card.localization?.en?.set || 'Unknown Set',
         setCode: card.setCode || card.id || '',
         rarity: card.rarity?.toLowerCase() || 'rare',
-        price: parseFloat(price).toFixed(2) || '0.00',
+        priceUSD: priceUSD,
+        priceFoilUSD: null,
+        price: exchangeRate ? parseFloat((priceUSD * exchangeRate)).toFixed(0) : parseFloat(priceUSD * 20).toFixed(0),
         priceFoil: null,
         stock: 1,
         active: true,
@@ -618,9 +642,9 @@ const Admin = () => {
         tcgdexId: card.id,
       };
     } else {
-      // From Scryfall API (Magic, etc.)
-      const price = card.prices?.usd ? parseFloat(card.prices.usd) : 0;
-      const priceFoil = card.prices?.usd_foil ? parseFloat(card.prices.usd_foil) : null;
+      // From Scryfall API (Magic, etc.) - prices in USD
+      const priceUSD = card.prices?.usd ? parseFloat(card.prices.usd) : 0;
+      const priceFoilUSD = card.prices?.usd_foil ? parseFloat(card.prices.usd_foil) : null;
       newCard = {
         id: `card-${Date.now()}`,
         name: card.name || 'Unknown Card',
@@ -628,8 +652,10 @@ const Admin = () => {
         set: card.set_name || 'Unknown Set',
         setCode: card.set || '',
         rarity: card.rarity?.toLowerCase() || 'rare',
-        price: parseFloat(price).toFixed(2) || '0.00',
-        priceFoil: priceFoil ? parseFloat(priceFoil).toFixed(2) : null,
+        priceUSD: priceUSD,
+        priceFoilUSD: priceFoilUSD,
+        price: exchangeRate ? parseFloat((priceUSD * exchangeRate)).toFixed(0) : parseFloat(priceUSD * 20).toFixed(0),
+        priceFoil: priceFoilUSD && exchangeRate ? parseFloat((priceFoilUSD * exchangeRate)).toFixed(0) : null,
         stock: 1,
         active: true,
         description: card.oracle_text || '',
@@ -1549,7 +1575,7 @@ const Admin = () => {
                           <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</p>
                           <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{setName} • {rarity}</p>
                           <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
-                            ${typeof price === 'number' ? price.toFixed(2) : parseFloat(price || 0).toFixed(2)}
+                            {formatPrice(price)}
                           </p>
                         </div>
                         <button 
