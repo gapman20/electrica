@@ -7,6 +7,7 @@ import scryfallApi from '../services/scryfallApi';
 import tcgdexApi from '../services/tcgdexApi';
 import pokemonTcgApi from '../services/pokemonTcgApi';
 import pokewalletApi from '../services/pokewalletApi';
+import currencyApi from '../services/currencyApi';
 import api, { getGameValue, orderApi } from '../services/api';
 import Swal from 'sweetalert2';
 import {
