@@ -523,12 +523,18 @@ const Admin = () => {
     
     try {
       if (selectedGame === 'pokemon') {
-        // Use PokéWallet API
+        // Use PokéWallet API for Pokémon only
         const result = await pokewalletApi.searchCards(searchQuery, { limit: 20 });
         setSearchResults(result.results || []);
+      } else if (selectedGame === 'yugioh') {
+        // Use TCGdex API for Yu-Gi-Oh!
+        const result = await tcgdexApi.searchCards(searchQuery, { limit: 20 });
+        setSearchResults(result.results || result.data || []);
       } else {
-        // Use Scryfall for Magic and other games
-        const result = await scryfallApi.searchCards(searchQuery, { limit: 20 });
+        // Use Scryfall for Magic (default)
+        // Add game filter to search query for better results
+        const gameQuery = `${searchQuery} game:${selectedGame}`;
+        const result = await scryfallApi.searchCards(gameQuery, { limit: 20 });
         setSearchResults(result.data || result.Results || []);
       }
     } catch (error) {
@@ -543,6 +549,7 @@ const Admin = () => {
     let newCard;
     
     if (selectedGame === 'pokemon') {
+      // From PokéWallet API
       const info = card.card_info || {};
       const tcgPrice = card.tcgplayer?.prices?.[0];
       const cmPrice = card.cardmarket?.prices?.[0];
@@ -565,7 +572,27 @@ const Admin = () => {
         condition: 'NM',
         pokemonId: card.id,
       };
+    } else if (selectedGame === 'yugioh') {
+      // From TCGdex API
+      const price = card.cardPrices?.[0]?.price || card.price || 0;
+      newCard = {
+        id: `card-${Date.now()}`,
+        name: card.name,
+        game: 'Yu-Gi-Oh',
+        set: card.set || card.localization?.en?.set || 'Unknown Set',
+        setCode: card.setCode || card.id,
+        rarity: card.rarity?.toLowerCase() || 'rare',
+        price: parseFloat(price).toFixed(2),
+        priceFoil: null,
+        stock: 1,
+        active: true,
+        description: card.description || '',
+        imageUrl: card.image || card.localization?.en?.image || null,
+        condition: 'NM',
+        tcgdexId: card.id,
+      };
     } else {
+      // From Scryfall API (Magic, etc.)
       const price = card.prices?.usd ? parseFloat(card.prices.usd) : 0;
       const priceFoil = card.prices?.usd_foil ? parseFloat(card.prices.usd_foil) : null;
       newCard = {
@@ -1449,29 +1476,53 @@ const Admin = () => {
               {searchResults.length > 0 && (
                 <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.8rem' }}>
-                    {searchResults.length} resultado(s) encontrado(s)
+                    {searchResults.length} resultado(s) encontrado(s) • {selectedGame === 'pokemon' ? 'PokéWallet' : selectedGame === 'yugioh' ? 'TCGdex' : 'Scryfall'}
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {searchResults.slice(0, 10).map((card, idx) => {
-                      const info = card.card_info || {};
-                      const tcgPrice = card.tcgplayer?.prices?.[0];
-                      const cmPrice = card.cardmarket?.prices?.[0];
-                      const price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+                      // Handle different API response formats
+                      let name, setName, rarity, price, imageUrl;
+                      
+                      if (selectedGame === 'pokemon') {
+                        // PokéWallet format
+                        const info = card.card_info || {};
+                        const tcgPrice = card.tcgplayer?.prices?.[0];
+                        const cmPrice = card.cardmarket?.prices?.[0];
+                        name = info.name;
+                        setName = info.set_name || 'Unknown Set';
+                        rarity = info.rarity || 'Rare';
+                        price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+                        imageUrl = `https://api.pokewallet.io/images/${card.id}?size=low`;
+                      } else if (selectedGame === 'yugioh') {
+                        // TCGdex format
+                        name = card.name;
+                        setName = card.set || card.localization?.en?.set || 'Unknown Set';
+                        rarity = card.rarity || 'Rare';
+                        price = card.cardPrices?.[0]?.price || 0;
+                        imageUrl = card.image || card.localization?.en?.image || null;
+                      } else {
+                        // Scryfall format (Magic)
+                        name = card.name;
+                        setName = card.set_name || 'Unknown Set';
+                        rarity = card.rarity || 'Rare';
+                        price = card.prices?.usd || 0;
+                        imageUrl = card.image_uris?.small || card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.small || null;
+                      }
                       
                       return (
                       <div key={card.id || idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.75rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                         <div style={{ width: '50px', height: '70px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.05)' }}>
-                          {selectedGame === 'pokemon' ? (
-                            <img src={`https://api.pokewallet.io/images/${card.id}?size=low`} alt={info.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
                           ) : (
                             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--text-secondary)' }}>🃏</div>
                           )}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.name}</p>
-                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{info.set_name || 'Unknown Set'} • {info.rarity || 'Rare'}</p>
+                          <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{setName} • {rarity}</p>
                           <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
-                            ${parseFloat(price).toFixed(2)}
+                            ${typeof price === 'number' ? price.toFixed(2) : parseFloat(price || 0).toFixed(2)}
                           </p>
                         </div>
                         <button 
