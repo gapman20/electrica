@@ -6,6 +6,7 @@ import ImageUploader from '../components/ImageUploader';
 import scryfallApi from '../services/scryfallApi';
 import tcgdexApi from '../services/tcgdexApi';
 import pokemonTcgApi from '../services/pokemonTcgApi';
+import pokewalletApi from '../services/pokewalletApi';
 import api, { getGameValue, orderApi } from '../services/api';
 import Swal from 'sweetalert2';
 import {
@@ -277,16 +278,14 @@ const Admin = () => {
   // Auto-search in external APIs as you type (500ms debounce)
   const searchTimeoutRef = useRef(null);
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() || searchQuery.length < 3) {
       setSearchResults([]);
       return;
     }
     clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(() => {
-      if (searchQuery.trim()) {
-        handleCardSearch();
-      }
-    }, 500);
+      handleCardSearch();
+    }, 800);
     return () => clearTimeout(searchTimeoutRef.current);
   }, [searchQuery]);
   const lastMessageId = React.useRef(null);
@@ -517,16 +516,16 @@ const Admin = () => {
   }, [orders.length, toast]);
 
   const handleCardSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim() || searchQuery.length < 3) return;
     
     setSearching(true);
     setSearchResults([]);
     
     try {
       if (selectedGame === 'pokemon') {
-        // Use TCGdex API (free, open source)
-        const result = await tcgdexApi.searchCards(searchQuery, { limit: 20 });
-        setSearchResults(result || []);
+        // Use PokéWallet API
+        const result = await pokewalletApi.searchCards(searchQuery, { limit: 20 });
+        setSearchResults(result.results || []);
       } else {
         // Use Scryfall for Magic
         const result = await scryfallApi.searchCards(`${searchQuery} game:${selectedGame}`, { limit: 20 });
@@ -544,46 +543,28 @@ const Admin = () => {
     let newCard;
     
     if (selectedGame === 'pokemon') {
-      try {
-        const fullCard = await tcgdexApi.getCardById(card.id);
-        
-        // Get price from TCGdex (EUR)
-        const price = fullCard.pricing?.cardmarket?.avg || 0;
-        
-        newCard = {
-          id: `card-${Date.now()}`,
-          name: fullCard.name,
-          game: 'Pokemon',
-          set: fullCard.set?.name || 'Unknown Set',
-          setCode: fullCard.set?.id || card.id?.split('-')[0],
-          rarity: fullCard.rarity?.toLowerCase() || 'rare',
-          price: price,
-          priceFoil: fullCard.pricing?.cardmarket?.avgHolofoil || fullCard.pricing?.cardmarket?.lowHolo || null,
-          stock: 1,
-          active: true,
-          description: fullCard.description || fullCard.attacks?.[0]?.effect || '',
-          imageUrl: fullCard.image,
-          condition: 'NM',
-          tcgdexId: fullCard.id,
-        };
-      } catch (e) {
-        console.error('Error fetching card details:', e);
-        
-        // Fallback to basic data
-        newCard = {
-          id: `card-${Date.now()}`,
-          name: card.name,
-          game: 'Pokemon',
-          set: 'Unknown Set',
-          rarity: 'rare',
-          price: 0,
-          priceFoil: null,
-          stock: 1,
-          active: true,
-          imageUrl: card.image,
-          condition: 'NM',
-        };
-      }
+      const info = card.card_info || {};
+      const tcgPrice = card.tcgplayer?.prices?.[0];
+      const cmPrice = card.cardmarket?.prices?.[0];
+      const price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+      const priceFoil = tcgPrice?.sub_type_name === 'Holofoil' ? tcgPrice?.market_price : null;
+      
+      newCard = {
+        id: `card-${Date.now()}`,
+        name: info.name,
+        game: 'Pokemon',
+        set: info.set_name || 'Unknown Set',
+        setCode: info.set_code || info.set_id,
+        rarity: info.rarity?.toLowerCase() || 'rare',
+        price: parseFloat(price).toFixed(2),
+        priceFoil: priceFoil ? parseFloat(priceFoil).toFixed(2) : null,
+        stock: 1,
+        active: true,
+        description: info.card_text || '',
+        imageUrl: `https://api.pokewallet.io/images/${card.id}?size=high`,
+        condition: 'NM',
+        pokemonId: card.id,
+      };
     } else {
       const price = card.prices?.usd ? parseFloat(card.prices.usd) : 0;
       const priceFoil = card.prices?.usd_foil ? parseFloat(card.prices.usd_foil) : null;
@@ -1471,29 +1452,23 @@ const Admin = () => {
                     {searchResults.length} resultado(s) encontrado(s)
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {searchResults.slice(0, 10).map(card => (
-                      <div key={card.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.75rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
+                    {searchResults.slice(0, 10).map((card, idx) => {
+                      const info = card.card_info || {};
+                      const tcgPrice = card.tcgplayer?.prices?.[0];
+                      const cmPrice = card.cardmarket?.prices?.[0];
+                      const price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+                      
+                      return (
+                      <div key={card.id || idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.75rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                         <div style={{ width: '50px', height: '70px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.05)' }}>
-                          {card.image || card.image_uris?.small ? (
-                            <img src={card.image || card.image_uris?.small} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <Layers size={20} color="var(--glass-border)" style={{ margin: '25px auto', display: 'block' }} />
-                          )}
+                          <img src={`https://api.pokewallet.io/images/${card.id}?size=low`} alt={info.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.name}</p>
-                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{(card.set?.name || card.set_name) || 'Unknown Set'} • {card.rarity || card.set_name || 'Rare'}</p>
-                          {selectedGame === 'magic' ? (
-                            <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
-                              ${card.prices?.usd || '0.00'}
-                            </p>
-                          ) : (
-                            card.pricing?.cardmarket?.avg && (
-                              <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
-                                €{card.pricing.cardmarket.avg}
-                              </p>
-                            )
-                          )}
+                          <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.name}</p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{info.set_name || 'Unknown Set'} • {info.rarity || 'Rare'}</p>
+                          <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
+                            ${parseFloat(price).toFixed(2)}
+                          </p>
                         </div>
                         <button 
                           onClick={() => importCard(card)}
@@ -1502,7 +1477,8 @@ const Admin = () => {
                           Importar
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
