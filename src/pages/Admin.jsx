@@ -527,8 +527,8 @@ const Admin = () => {
         const result = await pokewalletApi.searchCards(searchQuery, { limit: 20 });
         setSearchResults(result.results || []);
       } else {
-        // Use Scryfall for Magic
-        const result = await scryfallApi.searchCards(`${searchQuery} game:${selectedGame}`, { limit: 20 });
+        // Use Scryfall for Magic and other games
+        const result = await scryfallApi.searchCards(searchQuery, { limit: 20 });
         setSearchResults(result.data || result.Results || []);
       }
     } catch (error) {
