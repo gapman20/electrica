@@ -582,8 +582,8 @@ const Admin = () => {
         stock: 1,
         active: true,
         description: info.card_text || '',
-        // Store original PokéWallet URL - convert to blob when displaying
-        imageUrl: searchResultsImages[card.id] || `https://api.pokewallet.io/images/${card.id}?size=high`,
+        // Always save the original PokéWallet URL (not blob) - blob is only for temporary display
+        imageUrl: `https://api.pokewallet.io/images/${card.id}?size=high`,
         condition: 'NM',
         pokemonId: card.id,
       };
