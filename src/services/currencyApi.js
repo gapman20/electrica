@@ -1,7 +1,7 @@
-// Currency conversion using Frankfurter API (free, no API key needed)
-// Data from European Central Bank
+// Currency conversion - uses backend proxy to avoid CORS issues
+// Data from European Central Bank via Frankfurter API
 
-const FRANKFURTER_API = 'https://api.frankfurter.app';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Cache the exchange rate to avoid excessive API calls
 let cachedRate = null;
@@ -17,14 +17,15 @@ export async function getExchangeRate() {
   }
   
   try {
-    const response = await fetch(`${FRANKFURTER_API}/latest?from=USD&to=MXN`);
+    // Use backend proxy to avoid CORS issues
+    const response = await fetch(`${API_URL}/api/currency/exchange-rate`);
     
     if (!response.ok) {
-      throw new Error(`Exchange rate API error: ${response.status}`);
+      throw new Error(`Currency API error: ${response.status}`);
     }
     
     const data = await response.json();
-    cachedRate = data.rates.MXN;
+    cachedRate = data.rate;
     cacheTime = now;
     
     console.log(`[Currency] USD to MXN: ${cachedRate}`);
