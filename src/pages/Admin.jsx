@@ -272,6 +272,7 @@ const Admin = () => {
   // Scryfall search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [searchResultsImages, setSearchResultsImages] = useState({});
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
   
@@ -520,12 +521,25 @@ const Admin = () => {
     
     setSearching(true);
     setSearchResults([]);
+    setSearchResultsImages({});
     
     try {
       if (selectedGame === 'pokemon') {
         // Use PokéWallet API for Pokémon only
         const result = await pokewalletApi.searchCards(searchQuery, { limit: 20 });
-        setSearchResults(result.results || []);
+        const cards = result.results || [];
+        setSearchResults(cards);
+        
+        // Load images in parallel
+        if (cards.length > 0) {
+          const cardIds = cards.map(c => c.id);
+          const images = await pokewalletApi.getImageUrls(cardIds, 'low');
+          const imageMap = {};
+          images.forEach(img => {
+            imageMap[img.id] = img.url;
+          });
+          setSearchResultsImages(imageMap);
+        }
       } else if (selectedGame === 'yugioh') {
         // Use TCGdex API for Yu-Gi-Oh!
         const result = await tcgdexApi.searchCards(searchQuery, { limit: 20 });
@@ -568,7 +582,8 @@ const Admin = () => {
         stock: 1,
         active: true,
         description: info.card_text || '',
-        imageUrl: `https://api.pokewallet.io/images/${card.id}?size=high`,
+        // Store original PokéWallet URL - convert to blob when displaying
+        imageUrl: searchResultsImages[card.id] || `https://api.pokewallet.io/images/${card.id}?size=high`,
         condition: 'NM',
         pokemonId: card.id,
       };
@@ -1484,7 +1499,7 @@ const Admin = () => {
                       let name, setName, rarity, price, imageUrl;
                       
                       if (selectedGame === 'pokemon') {
-                        // PokéWallet format
+                        // PokéWallet format - use cached images
                         const info = card.card_info || {};
                         const tcgPrice = card.tcgplayer?.prices?.[0];
                         const cmPrice = card.cardmarket?.prices?.[0];
@@ -1492,7 +1507,7 @@ const Admin = () => {
                         setName = info.set_name || 'Unknown Set';
                         rarity = info.rarity || 'Rare';
                         price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
-                        imageUrl = `https://api.pokewallet.io/images/${card.id}?size=low`;
+                        imageUrl = searchResultsImages[card.id] || null;
                       } else if (selectedGame === 'yugioh') {
                         // TCGdex format
                         name = card.name;
