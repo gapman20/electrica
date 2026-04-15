@@ -665,12 +665,12 @@ const Admin = () => {
     if (existingCard) {
       const result = await Swal.fire({
         title: '⚠️ Carta duplicada',
-        text: `"${newCard.name}" de "${newCard.set}" ya existe en tu inventario. ¿Querés importarla de todas formas?`,
+        text: `"${newCard.name}" de "${newCard.set}" ya existe en tu inventario. ¿Qué deseas hacer?`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#f59e0b',
+        confirmButtonColor: '#10b981',
         cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Sí, importar',
+        confirmButtonText: 'Agregar otra copia',
         cancelButtonText: 'Cancelar',
         background: 'rgba(15, 23, 42, 0.95)',
         color: '#fff',
