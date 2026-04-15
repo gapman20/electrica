@@ -275,18 +275,23 @@ const Admin = () => {
   const [searchResultsImages, setSearchResultsImages] = useState({});
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
+  const searchInProgressRef = useRef(false);
   
-  // Auto-search in external APIs as you type (500ms debounce)
+  // Auto-search in external APIs as you type (1000ms debounce to avoid rate limits)
   const searchTimeoutRef = useRef(null);
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.length < 3) {
       setSearchResults([]);
       return;
     }
+    // Don't search if already searching (prevents rate limit)
+    if (searching) {
+      return;
+    }
     clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(() => {
       handleCardSearch();
-    }, 800);
+    }, 1000);
     return () => clearTimeout(searchTimeoutRef.current);
   }, [searchQuery]);
   const lastMessageId = React.useRef(null);
@@ -553,6 +558,11 @@ const Admin = () => {
       }
     } catch (error) {
       console.error('Card search error:', error);
+      // Don't show error toast for rate limits (429)
+      if (error.message && error.message.includes('429')) {
+        // Silently ignore rate limits
+        return;
+      }
       toast.error('Error al buscar cartas');
     } finally {
       setSearching(false);
@@ -1597,8 +1607,15 @@ const Admin = () => {
                       onMouseLeave={e => { if (editingCard !== card.id) e.currentTarget.style.borderColor = newCardId === card.id ? 'var(--accent-primary)' : 'var(--glass-border)'; }}
                     >
                       <div style={{ width: '60px', height: '84px', borderRadius: '6px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {card.imageUrl ? (
-                          <img src={card.imageUrl} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {card.imageUrl && !card.imageUrl.startsWith('blob:') ? (
+                          <img 
+                            src={card.imageUrl} 
+                            alt={card.name} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => { 
+                              e.target.style.display = 'none'; 
+                            }}
+                          />
                         ) : (
                           <Layers size={24} color="var(--glass-border)" />
                         )}
