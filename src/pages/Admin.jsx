@@ -589,16 +589,14 @@ const Admin = () => {
 
   const importCard = async (card) => {
     let newCard;
-    let priceUSD = 0;
-    let priceFoilUSD = null;
     
     if (selectedGame === 'pokemon') {
-      // From PokéWallet API - prices in USD
+      // From PokéWallet API - prices in USD, convert to MXN
       const info = card.card_info || {};
       const tcgPrice = card.tcgplayer?.prices?.[0];
       const cmPrice = card.cardmarket?.prices?.[0];
-      priceUSD = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
-      priceFoilUSD = tcgPrice?.sub_type_name === 'Holofoil' ? tcgPrice?.market_price : null;
+      const priceUSD = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+      const priceFoilUSD = tcgPrice?.sub_type_name === 'Holofoil' ? tcgPrice?.market_price : null;
       
       newCard = {
         id: `card-${Date.now()}`,
@@ -607,21 +605,18 @@ const Admin = () => {
         set: info.set_name || info.set_code || 'Unknown Set',
         setCode: info.set_code || info.set_id || '',
         rarity: info.rarity?.toLowerCase() || 'rare',
-        priceUSD: priceUSD,
-        priceFoilUSD: priceFoilUSD,
-        // Calculate MXN prices for storage (based on current exchange rate)
-        price: exchangeRate ? parseFloat((priceUSD * exchangeRate)).toFixed(0) : parseFloat(priceUSD * 20).toFixed(0),
-        priceFoil: priceFoilUSD && exchangeRate ? parseFloat((priceFoilUSD * exchangeRate)).toFixed(0) : null,
+        // Store price in MXN (converted from USD)
+        price: exchangeRate ? Math.round(priceUSD * exchangeRate) : Math.round(priceUSD * 20),
+        priceFoil: priceFoilUSD ? (exchangeRate ? Math.round(priceFoilUSD * exchangeRate) : Math.round(priceFoilUSD * 20)) : null,
         stock: 1,
         active: true,
         description: info.card_text || '',
-        // Always save the original PokéWallet URL (not blob) - blob is only for temporary display
         imageUrl: `https://api.pokewallet.io/images/${card.id}?size=high`,
         condition: 'NM',
         pokemonId: card.id,
       };
     } else if (selectedGame === 'yugioh') {
-      // From TCGdex API - prices in USD
+      // From TCGdex API - prices in USD, convert to MXN
       const priceUSD = card.cardPrices?.[0]?.price || card.price || 0;
       newCard = {
         id: `card-${Date.now()}`,
@@ -630,9 +625,7 @@ const Admin = () => {
         set: card.set || card.localization?.en?.set || 'Unknown Set',
         setCode: card.setCode || card.id || '',
         rarity: card.rarity?.toLowerCase() || 'rare',
-        priceUSD: priceUSD,
-        priceFoilUSD: null,
-        price: exchangeRate ? parseFloat((priceUSD * exchangeRate)).toFixed(0) : parseFloat(priceUSD * 20).toFixed(0),
+        price: exchangeRate ? Math.round(priceUSD * exchangeRate) : Math.round(priceUSD * 20),
         priceFoil: null,
         stock: 1,
         active: true,
@@ -642,7 +635,7 @@ const Admin = () => {
         tcgdexId: card.id,
       };
     } else {
-      // From Scryfall API (Magic, etc.) - prices in USD
+      // From Scryfall API (Magic, etc.) - prices in USD, convert to MXN
       const priceUSD = card.prices?.usd ? parseFloat(card.prices.usd) : 0;
       const priceFoilUSD = card.prices?.usd_foil ? parseFloat(card.prices.usd_foil) : null;
       newCard = {
@@ -652,10 +645,8 @@ const Admin = () => {
         set: card.set_name || 'Unknown Set',
         setCode: card.set || '',
         rarity: card.rarity?.toLowerCase() || 'rare',
-        priceUSD: priceUSD,
-        priceFoilUSD: priceFoilUSD,
-        price: exchangeRate ? parseFloat((priceUSD * exchangeRate)).toFixed(0) : parseFloat(priceUSD * 20).toFixed(0),
-        priceFoil: priceFoilUSD && exchangeRate ? parseFloat((priceFoilUSD * exchangeRate)).toFixed(0) : null,
+        price: exchangeRate ? Math.round(priceUSD * exchangeRate) : Math.round(priceUSD * 20),
+        priceFoil: priceFoilUSD ? (exchangeRate ? Math.round(priceFoilUSD * exchangeRate) : Math.round(priceFoilUSD * 20)) : null,
         stock: 1,
         active: true,
         description: card.oracle_text || '',
