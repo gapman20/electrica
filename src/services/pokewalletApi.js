@@ -1,12 +1,15 @@
 const API_KEY = import.meta.env.VITE_POKEWALLET_API_KEY;
-const BASE_URL = '/api/pokewallet';
+const BASE_URL = import.meta.env.VITE_ENV === 'production' 
+  ? 'https://api.pokewallet.io' 
+  : '/api/pokewallet';
 
 if (!API_KEY) {
-  console.warn('⚠️ VITE_POKEWALLET_API_KEY no está configurada en .env.development');
+  console.warn('⚠️ VITE_POKEWALLET_API_KEY no está configurada');
 }
 
 async function apiRequest(endpoint) {
   const response = await fetch(`${BASE_URL}${endpoint}`, {
+    mode: 'cors',
     headers: {
       'X-API-Key': API_KEY || '',
     },
