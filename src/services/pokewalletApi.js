@@ -1,11 +1,9 @@
 const API_KEY = import.meta.env.VITE_POKEWALLET_API_KEY;
-const BASE_URL = import.meta.env.VITE_ENV === 'production' 
-  ? 'https://api.pokewallet.io' 
-  : '/api/pokewallet';
+const BASE_URL = window.location.hostname === 'localhost' 
+  ? '/api/pokewallet' 
+  : 'https://api.pokewallet.io';
 
-if (!API_KEY) {
-  console.warn('⚠️ VITE_POKEWALLET_API_KEY no está configurada');
-}
+console.log('PokéWallet base:', BASE_URL);
 
 async function apiRequest(endpoint) {
   const response = await fetch(`${BASE_URL}${endpoint}`, {
