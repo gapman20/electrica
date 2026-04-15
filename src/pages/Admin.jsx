@@ -611,7 +611,8 @@ const Admin = () => {
         stock: 1,
         active: true,
         description: info.card_text || '',
-        imageUrl: `https://api.pokewallet.io/images/${card.id}?size=high`,
+        // Use backend proxy for images to avoid CORS issues
+        imageUrl: `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/pokewallet/images/${card.id}?size=high`,
         condition: 'NM',
         pokemonId: card.id,
       };
