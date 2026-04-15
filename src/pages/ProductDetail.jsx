@@ -6,6 +6,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { cardApi, productApi, getGameValue } from '../services/api';
+import { formatPrice } from '../utils/format';
 
 const GAMES = {
   pokemon: { name: 'Pokémon TCG', icon: '🔴', color: '#ef4444' },
@@ -27,8 +28,6 @@ const RARITY_COLORS = {
   'full-art': '#ec4899',
   'alternate-art': '#06b6d4'
 };
-
-const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
 const ProductDetail = () => {
   const { id } = useParams();

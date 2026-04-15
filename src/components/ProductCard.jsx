@@ -1,17 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ShoppingCart, Heart, Check, Package } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useSite } from '../context/SiteContext';
 import { useToast } from './Toast';
 import { getGameValue } from '../services/api';
-
-const formatPrice = (price) => {
-  if (!price) return '';
-  const num = typeof price === 'number' ? price : parseFloat(price);
-  if (isNaN(num)) return price || '';
-  return `$${num.toLocaleString('es-MX')} MXN`;
-};
+import { formatPrice } from '../utils/format';
 
 const ProductCard = ({ item, type = 'product' }) => {
   const { addItem } = useCart();
@@ -82,7 +76,7 @@ const ProductCard = ({ item, type = 'product' }) => {
     <div className="tcg-product-card">
       <div className="product-image-container">
         {item.imageUrl || item.image ? (
-          <img src={item.imageUrl || item.image} alt={item.name} className="product-image" />
+          <img src={item.imageUrl || item.image} alt={item.name} className="product-image" loading="lazy" />
         ) : (
           <div className="product-placeholder">
             <Package size={48} color="var(--text-secondary)" />
@@ -162,4 +156,4 @@ const ProductCard = ({ item, type = 'product' }) => {
   );
 };
 
-export default ProductCard;
+export default React.memo(ProductCard);

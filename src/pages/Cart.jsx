@@ -4,11 +4,10 @@ import { useCart } from '../context/CartContext';
 import { Store, Truck, ShoppingBag, ArrowRight, Trash2 } from 'lucide-react';
 import { getGameValue } from '../services/api';
 import SEO from '../components/SEO';
+import { formatPrice } from '../utils/format';
 
 const Cart = () => {
   const { items, subtotal, shippingCost, total, itemCount, deliveryOption, setDeliveryOption, updateQuantity, removeItem, clearCart, isLoading } = useCart();
-
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
   if (isLoading) {
     return (

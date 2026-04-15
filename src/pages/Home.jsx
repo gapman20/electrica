@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { 
+import {
   Shield, Truck, CreditCard, Package, ChevronLeft, ChevronRight,
   Zap, Star, Clock, Tag, Sparkles, ArrowRight
 } from 'lucide-react';
@@ -11,13 +11,7 @@ import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { getGameValue, productApi, cardApi } from '../services/api';
 import ProductCard from '../components/ProductCard';
-
-const formatPrice = (value) => {
-  if (!value) return '';
-  const num = typeof value === 'number' ? value : parseFloat(value);
-  if (isNaN(num)) return value;
-  return `$${num.toLocaleString('es-MX')} MXN`;
-};
+import { formatPrice } from '../utils/format';
 
 const GameCard = ({ name, icon, color }) => (
   <Link 

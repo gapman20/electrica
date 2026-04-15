@@ -15,105 +15,44 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginPhase, setLoginPhase] = useState('idle');
-  const [googleButtonReady, setGoogleButtonReady] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
 
   useEffect(() => {
-    const initGoogle = () => {
-      console.log('Google init starting...');
-      console.log('Google available:', !!window.google?.accounts?.id);
-      console.log('Client ID:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
-      
-      if (window.google?.accounts?.id) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-            callback: (response) => {
-              console.log('Google callback received');
-              if (response.credential) {
-                fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/google`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ googleToken: response.credential }),
-                })
-                .then(res => res.json())
-                .then(data => {
-                  if (data.token) {
-                    localStorage.setItem('auth_token', data.token);
-                    localStorage.setItem('tcg_user', JSON.stringify(data.user));
-                    setUser(data.user);
-                    navigate('/');
-                  } else {
-                    Swal.fire({
-                      icon: 'error',
-                      title: 'Error',
-                      text: data.error || 'No se pudo iniciar sesión con Google',
-                      confirmButtonColor: '#d4af37',
-                      background: 'rgba(15, 23, 42, 0.95)',
-                      color: '#fff',
-                    });
-                  }
-                })
-                .catch(err => {
-                  Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: err.message,
-                    confirmButtonColor: '#d4af37',
-                    background: 'rgba(15, 23, 42, 0.95)',
-                    color: '#fff',
-                  });
-                });
-              }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: false
-          });
-          console.log('Google initialized successfully');
-          
-          setTimeout(() => {
-            if (window.google?.accounts?.id) {
-              const googleBtnContainer = document.getElementById('googleButtonContainer');
-              if (googleBtnContainer) {
-                window.google.accounts.id.renderButton(googleBtnContainer, {
-                  theme: 'outline',
-                  size: 'large',
-                  width: '100%'
-                });
-                setGoogleButtonReady(true);
-                console.log('Google button rendered');
-              }
-            }
-          }, 100);
-          
-        } catch (e) {
-          console.error('Error initializing Google:', e);
-        }
-      } else {
-        console.log('Google accounts.id not available');
-      }
+    const handleGoogleSuccess = (e) => {
+      const { user, token } = e.detail;
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('tcg_user', JSON.stringify(user));
+      setUser(user);
+      navigate('/');
     };
 
-    if (window.google?.accounts?.id) {
-      initGoogle();
+    const checkGoogleButton = () => {
+      setGoogleReady(true);
+      
+      setTimeout(() => {
+        const container = document.getElementById('google-button-container');
+        const fallbackBtn = document.getElementById('google-fallback-button');
+        const hasGoogleBtn = container && container.querySelector('[role="button"], iframe');
+        
+        if (fallbackBtn) {
+          fallbackBtn.style.display = hasGoogleBtn ? 'none' : 'flex';
+        }
+      }, 600);
+    };
+
+    if (window.googleInitialized) {
+      checkGoogleButton();
     } else {
-      console.log('Loading Google script...');
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = initGoogle;
-      script.onerror = () => console.error('Failed to load Google script');
-      document.head.appendChild(script);
+      window.googleReadyCallbacks.push(checkGoogleButton);
     }
-  }, []);
+
+    window.addEventListener('google-login-success', handleGoogleSuccess);
+    return () => window.removeEventListener('google-login-success', handleGoogleSuccess);
+  }, [navigate, setUser]);
 
   const handleGoogleLogin = () => {
-    console.log('handleGoogleLogin clicked');
     if (window.google?.accounts?.id) {
-      console.log('Calling prompt()');
       window.google.accounts.id.prompt();
-    } else {
-      console.log('Google not available');
     }
   };
 
@@ -222,15 +161,17 @@ const Login = () => {
           <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }}></div>
         </div>
 
-        {googleButtonReady ? (
-          <div id="googleButtonContainer"></div>
-        ) : (
+        <div id="google-button-container" style={{ display: 'flex', justifyContent: 'center' }}></div>
+
+        {googleReady && (
           <button 
             onClick={handleGoogleLogin}
             className="btn-primary"
+            id="google-fallback-button"
             style={{ 
-              width: '100%', 
-              display: 'flex', 
+              width: '100%',
+              maxWidth: '300px', 
+              display: 'none', 
               alignItems: 'center', 
               justifyContent: 'center', 
               gap: '12px',
@@ -242,7 +183,7 @@ const Login = () => {
               fontSize: '0.95rem',
               fontWeight: '600',
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              margin: '0 auto',
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24">

@@ -5,6 +5,77 @@ import { HelmetProvider } from 'react-helmet-async'
 import './index.css'
 import App from './App.jsx'
 
+if (typeof window !== 'undefined') {
+  window.googleInitialized = false;
+  window.googleReadyCallbacks = [];
+  
+  window.initGoogleSignIn = () => {
+    if (window.googleInitialized) return;
+    
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return;
+    }
+    
+    window.googleInitialized = true;
+    
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response) => {
+            if (response.credential) {
+              fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/google`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ googleToken: response.credential }),
+              })
+              .then(res => res.json())
+              .then(data => {
+                if (data.token) {
+                  localStorage.setItem('auth_token', data.token);
+                  localStorage.setItem('tcg_user', JSON.stringify(data.user));
+                  window.dispatchEvent(new CustomEvent('google-login-success', { detail: data }));
+                  window.location.reload();
+                }
+              });
+            }
+          },
+          ux_mode: 'popup',
+          auto_select: false,
+          cancel_on_tap_outside: false,
+        });
+        window.googleReadyCallbacks.forEach(cb => cb());
+        window.googleReadyCallbacks = [];
+        
+        setTimeout(() => {
+          const container = document.getElementById('google-button-container');
+          if (container && window.google?.accounts?.id) {
+            window.google.accounts.id.renderButton(container, {
+              theme: 'outline',
+              size: 'large',
+              width: '100%'
+            });
+            
+            if (!container.querySelector('button')) {
+              window.googleReadyCallbacks.forEach(cb => cb());
+            }
+          } else {
+            window.googleReadyCallbacks.forEach(cb => cb());
+          }
+        }, 500);
+      }
+    };
+    document.head.appendChild(script);
+  };
+  
+  window.initGoogleSignIn();
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>

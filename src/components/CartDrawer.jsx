@@ -3,11 +3,10 @@ import { Link } from 'react-router-dom';
 import { X, Minus, Plus, Trash2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getGameValue } from '../services/api';
+import { formatPrice } from '../utils/format';
 
 const CartDrawer = () => {
   const { items, subtotal, itemCount, isCartOpen, closeCart, updateQuantity, removeItem, isLoading } = useCart();
-
-  const formatPrice = (price) => `$${Number(price).toLocaleString('es-MX')} MXN`;
 
   if (!isCartOpen) return null;
 
@@ -39,7 +38,7 @@ const CartDrawer = () => {
               <div key={item.cartId} className="cart-drawer-item">
                 <div className="cart-drawer-item-image">
                   {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.name} />
+                    <img src={item.imageUrl} alt={item.name} loading="lazy" />
                   ) : (
                     <div className="cart-drawer-item-placeholder">{item.name?.charAt(0)}</div>
                   )}

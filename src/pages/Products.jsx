@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { productApi } from '../services/api';
 import ProductCard from '../components/ProductCard';
+import { formatPrice } from '../utils/format';
 
 const GAMES = [
   { id: 'all', name: 'Todos', icon: '🎯', color: '#6366f1' },
@@ -37,13 +38,6 @@ const PRODUCT_TYPES = [
   { id: 'blister', name: 'Blister' },
   { id: 'premium', name: 'Premium' }
 ];
-
-const formatPrice = (price) => {
-  if (!price) return '';
-  const num = typeof price === 'number' ? price : parseFloat(price);
-  if (isNaN(num)) return price || '';
-  return `$${num.toLocaleString('es-MX')} MXN`;
-};
 
 const normalizeSealedProduct = (product) => ({
   ...product,

@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSite } from '../context/SiteContext';
 import { useToast } from '../components/Toast';
 import ImageUploader from '../components/ImageUploader';
 import scryfallApi from '../services/scryfallApi';
-import pokemonTcgApi, { formatPokemonCard } from '../services/pokemonTcgApi';
+import tcgdexApi from '../services/tcgdexApi';
+import pokemonTcgApi from '../services/pokemonTcgApi';
+import pokewalletApi from '../services/pokewalletApi';
 import api, { getGameValue, orderApi } from '../services/api';
 import Swal from 'sweetalert2';
 import {
@@ -17,6 +19,13 @@ import {
   Gamepad2, Layers, Tag, Calendar, Percent, Search,
   Truck
 } from 'lucide-react';
+
+const getMonday = (date) => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+};
 
 const showDeleteAlert = (itemType = 'este elemento') => {
   return Swal.fire({
@@ -180,11 +189,21 @@ const insertFormat = (path, value, formatType, onChange) => {
   onChange(path, strVal + (strVal && strVal !== '' ? ' ' : '') + formats[formatType]);
 };
 
-// ─── Sidebar Sections ─────────────────────────────────────────────────────────
-const sections = [
+// ─── Sidebar Sections (with dynamic badges) ─────────────────────────────────────
+const AdminSections = ({ unreadOrders, unreadMessages }) => [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} /> },
-  { id: 'orders', label: 'Pedidos', icon: <Package size={17} /> },
-  { id: 'inbox', label: 'Bandeja de Entrada', icon: <Mail size={17} /> },
+  { 
+    id: 'orders', 
+    label: 'Pedidos', 
+    icon: <Package size={17} />,
+    badge: unreadOrders > 0 ? unreadOrders : null
+  },
+  { 
+    id: 'inbox', 
+    label: 'Bandeja de Entrada', 
+    icon: <Mail size={17} />,
+    badge: unreadMessages > 0 ? unreadMessages : null
+  },
   { id: 'sellados', label: 'Sellados', icon: <Package size={17} /> },
   { id: 'cards', label: 'Cartas Sueltas', icon: <Layers size={17} /> },
   { id: 'campaigns', label: 'Campañas Oferta', icon: <Tag size={17} /> },
@@ -237,14 +256,38 @@ const Admin = () => {
   const [newSelladoId, setNewSelladoId] = useState(null);
   const [savingSellado, setSavingSellado] = useState(false);
 
+  // Dashboard state
+  const [dashboardPeriod, setDashboardPeriod] = useState('Hoy');
+  const [dashboardOrders, setDashboardOrders] = useState([]);
+
   // Campaigns state
   const [editingCampaign, setEditingCampaign] = useState(null);
+
+  // Real-time notifications state
+  const [unreadOrders, setUnreadOrders] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [sseConnected, setSseConnected] = useState(false);
+  const eventSourceRef = useRef(null);
 
   // Scryfall search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
+  
+  // Auto-search in external APIs as you type (500ms debounce)
+  const searchTimeoutRef = useRef(null);
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+    clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      handleCardSearch();
+    }, 800);
+    return () => clearTimeout(searchTimeoutRef.current);
+  }, [searchQuery]);
   const lastMessageId = React.useRef(null);
   const lastMessageDate = React.useRef(null);
   const lastOrderId = React.useRef(null);
@@ -254,18 +297,26 @@ const Admin = () => {
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState('all');
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({ PENDING: 0, PROCESSING: 0, SHIPPED: 0, DELIVERED: 0, CANCELLED: 0 });
+  const ORDER_LIMIT = 10;
 
   // Load orders from API (only update if there are changes)
-  const loadOrders = async (showLoading = false) => {
+  const loadOrders = async (showLoading = false, customLimit = null) => {
     if (showLoading) setOrdersLoading(true);
     try {
-      const data = await orderApi.getAll();
-      const newOrders = data || [];
-      
+      const params = { page: 1, limit: customLimit || ORDER_LIMIT };
+      if (orderFilter !== 'all') params.status = orderFilter;
+      const data = await orderApi.getAll(params);
+      const newOrders = data.orders || [];
+      const total = data.pagination?.total || 0;
+      setOrderTotal(total);
+
       // Only update if there are actual changes (different length or different IDs)
       const currentIds = orders.map(o => o.id).sort().join(',');
       const newIds = newOrders.map(o => o.id).sort().join(',');
-      
+
       if (currentIds !== newIds) {
         setOrders(newOrders);
       }
@@ -276,61 +327,155 @@ const Admin = () => {
     }
   };
 
+  // Load total count for each status from the server
+  const loadStatusCounts = async () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      const statuses = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+      const results = await Promise.all(
+        statuses.map(async (status) => {
+          const resp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/orders?page=1&limit=1&status=${status}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await resp.json();
+          return [status, data.pagination?.total || 0];
+        })
+      );
+      // Also get the grand total (all statuses)
+      const allResp = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/orders?page=1&limit=1`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const allData = await allResp.json();
+      const allTotal = allData.pagination?.total || 0;
+
+      setStatusCounts(Object.fromEntries(results));
+      setOrderTotal(orderFilter === 'all' ? allTotal : (Object.fromEntries(results)[orderFilter] || 0));
+    } catch (err) {
+      console.error('Error loading status counts:', err);
+    }
+  };
+
   useEffect(() => {
     if (active === 'inbox') {
       loadMessages();
     }
-    if (active === 'orders') {
-      loadOrders(true);
+    if (active === 'orders' || active === 'dashboard') {
+      loadOrders(true, active === 'dashboard' ? 100 : null);
+      if (active === 'orders') loadStatusCounts();
     }
-  }, [active]);
+  }, [active, orderPage, orderFilter]);
 
+  // Sync orders to dashboardOrders when loaded
   useEffect(() => {
-    const checkNewMessages = async () => {
-      await loadMessages();
-    };
-    
-    const checkNewOrders = async () => {
-      await loadOrders();
-    };
+    if (active === 'dashboard' && orders.length > 0) {
+      setDashboardOrders(orders);
+    }
+  }, [orders, active]);
 
-    const checkSellados = async () => {
+  // Poll badge counts every 15 seconds and show notifications when counts increase
+  useEffect(() => {
+    const POLL_INTERVAL = 15000; // 15 seconds - much less frequent than before
+    let previousOrders = 0;
+    let previousMessages = 0;
+
+    const pollBadgeCounts = async () => {
       try {
-        const data = await api.products.getAll();
-        if (Array.isArray(data)) {
-          setSellados(prev => {
-            const hasChanges = JSON.stringify(prev) !== JSON.stringify(data);
-            return hasChanges ? data : prev;
-          });
+        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/orders/stats`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const stats = await response.json();
+          
+          // Show notification if counts increased
+          if (stats.pendingOrders > previousOrders && previousOrders > 0) {
+            const newOrders = stats.pendingOrders - previousOrders;
+            console.log(`[Admin] 🛍️ ${newOrders} new order(s) detected`);
+            
+            Swal.fire({
+              title: '🛍️ New Order(s)!',
+              text: `${newOrders} new order(s) since last check`,
+              icon: 'success',
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 4000,
+              background: '#10b981',
+              color: '#fff'
+            });
+          }
+          
+          if (stats.unreadMessages > previousMessages && previousMessages > 0) {
+            const newMessages = stats.unreadMessages - previousMessages;
+            console.log(`[Admin] 📧 ${newMessages} new message(s) detected`);
+            
+            Swal.fire({
+              title: '📧 New Message(s)!',
+              text: `${newMessages} new message(s) since last check`,
+              icon: 'info',
+              toast: true,
+              position: 'top-end',
+              showConfirmButton: false,
+              timer: 4000,
+              background: '#3b82f6',
+              color: '#fff'
+            });
+          }
+          
+          setUnreadOrders(stats.pendingOrders);
+          setUnreadMessages(stats.unreadMessages);
+          
+          previousOrders = stats.pendingOrders;
+          previousMessages = stats.unreadMessages;
         }
-      } catch (err) {
-        console.error('Error refreshing sellados:', err);
+      } catch (error) {
+        // Silently fail - will retry on next poll
       }
     };
 
-    const checkCards = async () => {
-      try {
-        const data = await api.cards.getAll();
-        if (Array.isArray(data)) {
-          setCards(prev => {
-            const hasChanges = JSON.stringify(prev) !== JSON.stringify(data);
-            return hasChanges ? data : prev;
-          });
-        }
-      } catch (err) {
-        console.error('Error refreshing cards:', err);
-      }
-    };
-    
-    const interval = setInterval(() => {
-      checkNewMessages();
-      checkNewOrders();
-      checkSellados();
-      checkCards();
-    }, 3000);
-    
+    // Load initial counts immediately
+    pollBadgeCounts();
+
+    // Then poll every 15 seconds
+    const interval = setInterval(pollBadgeCounts, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, []);
+
+  // Load initial badge counts
+  useEffect(() => {
+    const loadBadgeCounts = async () => {
+      try {
+        const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/orders/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const stats = await response.json();
+          setUnreadOrders(stats.pendingOrders);
+          setUnreadMessages(stats.unreadMessages);
+          console.log(`[Admin] Loaded badge counts: ${stats.pendingOrders} orders, ${stats.unreadMessages} messages`);
+        }
+      } catch (error) {
+        console.error('[Admin] Error loading badge counts:', error);
+      }
+    };
+
+    loadBadgeCounts();
+  }, []);
+
+  // Reset unread counters when viewing the tab
+  useEffect(() => {
+    if (active === 'inbox') {
+      setUnreadMessages(0);
+    }
+    if (active === 'orders') {
+      setUnreadOrders(0);
+    }
+  }, [active]);
 
   useEffect(() => {
     if (inbox.length > 0) {
@@ -359,7 +504,8 @@ const Admin = () => {
       } else if (lastOrderId.current !== latestOrder.id) {
         const currentDate = new Date(latestOrder.createdAt);
         const previousDate = lastOrderDate.current ? new Date(lastOrderDate.current) : null;
-        if (!previousDate || currentDate > previousDate) {
+        const isNew = Date.now() - currentDate.getTime() < 2 * 60 * 1000; // within 2 minutes
+        if (isNew && (!previousDate || currentDate > previousDate)) {
           const total = latestOrder.total || latestOrder.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
           toast.success(`Nuevo pedido #${latestOrder.orderNumber}: $${Number(total).toLocaleString('es-MX')} MXN`);
         }
@@ -370,29 +516,20 @@ const Admin = () => {
   }, [orders.length, toast]);
 
   const handleCardSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim() || searchQuery.length < 3) return;
     
     setSearching(true);
     setSearchResults([]);
     
     try {
       if (selectedGame === 'pokemon') {
-        const result = await pokemonTcgApi.searchCards(searchQuery, { limit: 20 });
-        if (result.data) {
-          setSearchResults(result.data);
-        } else {
-          setSearchResults([]);
-        }
+        // Use PokéWallet API
+        const result = await pokewalletApi.searchCards(searchQuery, { limit: 20 });
+        setSearchResults(result.results || []);
       } else {
-        const query = `${searchQuery} game:${selectedGame}`;
-        const result = await scryfallApi.searchCards(query, { limit: 20 });
-        if (result.data) {
-          setSearchResults(result.data);
-        } else if (result.Results) {
-          setSearchResults(result.Results);
-        } else {
-          setSearchResults([]);
-        }
+        // Use Scryfall for Magic
+        const result = await scryfallApi.searchCards(`${searchQuery} game:${selectedGame}`, { limit: 20 });
+        setSearchResults(result.data || result.Results || []);
       }
     } catch (error) {
       console.error('Card search error:', error);
@@ -406,12 +543,27 @@ const Admin = () => {
     let newCard;
     
     if (selectedGame === 'pokemon') {
-      const formatted = formatPokemonCard(card);
+      const info = card.card_info || {};
+      const tcgPrice = card.tcgplayer?.prices?.[0];
+      const cmPrice = card.cardmarket?.prices?.[0];
+      const price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+      const priceFoil = tcgPrice?.sub_type_name === 'Holofoil' ? tcgPrice?.market_price : null;
+      
       newCard = {
-        ...formatted,
         id: `card-${Date.now()}`,
-        price: typeof formatted.price === 'number' ? formatted.price : parseFloat(formatted.price) || 0,
-        imageUrl: formatted.image,
+        name: info.name,
+        game: 'Pokemon',
+        set: info.set_name || 'Unknown Set',
+        setCode: info.set_code || info.set_id,
+        rarity: info.rarity?.toLowerCase() || 'rare',
+        price: parseFloat(price).toFixed(2),
+        priceFoil: priceFoil ? parseFloat(priceFoil).toFixed(2) : null,
+        stock: 1,
+        active: true,
+        description: info.card_text || '',
+        imageUrl: `https://api.pokewallet.io/images/${card.id}?size=high`,
+        condition: 'NM',
+        pokemonId: card.id,
       };
     } else {
       const price = card.prices?.usd ? parseFloat(card.prices.usd) : 0;
@@ -421,7 +573,7 @@ const Admin = () => {
         name: card.name,
         game: selectedGame.charAt(0).toUpperCase() + selectedGame.slice(1),
         set: card.set_name,
-        rarity: card.rarity?.replace(/^\w/, c => c.toUpperCase()) || 'Rare',
+        rarity: card.rarity || 'Rare',
         price: price,
         priceFoil: priceFoil,
         stock: 1,
@@ -767,12 +919,13 @@ const Admin = () => {
         const now = new Date();
         const todayOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
-          return orderDate.toDateString() === now.toDateString();
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          return orderDate >= todayStart;
         });
         const weekOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          return orderDate >= weekAgo;
+          const monday = getMonday(now);
+          return orderDate >= monday;
         });
         const monthOrders = dashboardOrders.filter(o => {
           const orderDate = new Date(o.createdAt);
@@ -798,13 +951,13 @@ const Admin = () => {
             
             {/* Period Filter */}
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-              {['Hoy', 'Esta Semana', 'Este Mes'].map((period, i) => (
-                <button key={period} style={{
+              {['Hoy', 'Esta Semana', 'Este Mes'].map((period) => (
+                <button key={period} onClick={() => setDashboardPeriod(period)} style={{
                   padding: '8px 16px',
-                  background: i === 1 ? 'var(--accent-gold)' : 'var(--glass-bg)',
+                  background: dashboardPeriod === period ? 'var(--accent-gold)' : 'var(--glass-bg)',
                   border: '1px solid var(--glass-border)',
                   borderRadius: '8px',
-                  color: i === 1 ? 'white' : 'var(--text-secondary)',
+                  color: dashboardPeriod === period ? 'white' : 'var(--text-secondary)',
                   fontWeight: '600',
                   cursor: 'pointer',
                   fontSize: '0.85rem'
@@ -826,9 +979,15 @@ const Admin = () => {
 
             {/* Orders Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-              <StatCard label="Pedidos Hoy" val={todayOrders.length} sub="Últimas 24h" color="#25d366" Icon={BarChart2} />
-              <StatCard label="Pedidos Semana" val={weekOrders.length} sub="Últimos 7 días" color="#3b82f6" Icon={BarChart2} />
-              <StatCard label="Pedidos Mes" val={monthOrders.length} sub="Últimos 30 días" color="#8b5cf6" Icon={BarChart2} />
+              {dashboardPeriod === 'Hoy' && (
+                <StatCard label="Pedidos Hoy" val={todayOrders.length} sub="Últimas 24h" color="#25d366" Icon={BarChart2} />
+              )}
+              {dashboardPeriod === 'Esta Semana' && (
+                <StatCard label="Pedidos Esta Semana" val={weekOrders.length} sub="Lunes - Domingo" color="#3b82f6" Icon={BarChart2} />
+              )}
+              {dashboardPeriod === 'Este Mes' && (
+                <StatCard label="Pedidos Este Mes" val={monthOrders.length} sub="Últimos 30 días" color="#8b5cf6" Icon={BarChart2} />
+              )}
               <StatCard label="Total Pedidos" val={dashboardOrders.length} sub="Registrados" color="#f59e0b" Icon={BarChart2} />
             </div>
 
@@ -1098,12 +1257,12 @@ const Admin = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Precio ($)</label>
-                        <input type="number" value={selectedSellado.price} onChange={e => updateSellado(selectedSellado.id, 'price', parseFloat(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" step="0.01" />
+                        <input type="number" step="any" value={selectedSellado.price || ''} onChange={e => updateSellado(selectedSellado.id, 'price', parseFloat(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0.00" />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>% Descuento</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input type="number" value={selectedSellado.discountPercent || 0} onChange={e => updateSellado(selectedSellado.id, 'discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" max="99" />
+                          <input type="number" step="1" value={selectedSellado.discountPercent || ''} onChange={e => updateSellado(selectedSellado.id, 'discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
                           <span style={{ color: 'var(--text-secondary)', fontSize: '1.2rem' }}>%</span>
                         </div>
                         {selectedSellado.discountPercent > 0 && (
@@ -1114,7 +1273,7 @@ const Admin = () => {
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Stock</label>
-                        <input type="number" value={selectedSellado.stock} onChange={e => updateSellado(selectedSellado.id, 'stock', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" />
+                        <input type="number" step="1" value={selectedSellado.stock || ''} onChange={e => updateSellado(selectedSellado.id, 'stock', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
                       </div>
                     </div>
 
@@ -1272,8 +1431,8 @@ const Admin = () => {
                   type="text" 
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleCardSearch()}
-                  placeholder={selectedGame === 'pokemon' ? "Buscar carta... (ej: Charizard)" : "Buscar carta... (ej: Black Lotus)"}
+                  
+                  placeholder={selectedGame === 'pokemon' ? "Buscar carta..." : "Buscar carta..."}
                   style={{ ...inputSt, flex: 1 }}
                 />
                 <button 
@@ -1293,21 +1452,22 @@ const Admin = () => {
                     {searchResults.length} resultado(s) encontrado(s)
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {searchResults.slice(0, 10).map(card => (
-                      <div key={card.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.75rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
+                    {searchResults.slice(0, 10).map((card, idx) => {
+                      const info = card.card_info || {};
+                      const tcgPrice = card.tcgplayer?.prices?.[0];
+                      const cmPrice = card.cardmarket?.prices?.[0];
+                      const price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+                      
+                      return (
+                      <div key={card.id || idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.75rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                         <div style={{ width: '50px', height: '70px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.05)' }}>
-                          {card.image_uris?.small ? (
-                            <img src={card.image_uris.small} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <Layers size={20} color="var(--glass-border)" style={{ margin: '25px auto', display: 'block' }} />
-                          )}
+                          <img src={`https://api.pokewallet.io/images/${card.id}?size=low`} alt={info.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.name}</p>
-                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{card.set_name} • {card.rarity}</p>
+                          <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.name}</p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{info.set_name || 'Unknown Set'} • {info.rarity || 'Rare'}</p>
                           <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
-                            ${card.prices?.usd || '0.00'}
-                            {card.prices?.usd_foil && <span style={{ color: 'var(--text-secondary)', fontWeight: '400' }}> / foil: ${card.prices.usd_foil}</span>}
+                            ${parseFloat(price).toFixed(2)}
                           </p>
                         </div>
                         <button 
@@ -1317,7 +1477,8 @@ const Admin = () => {
                           Importar
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1447,11 +1608,11 @@ const Admin = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Precio ($)</label>
-                        <input type="number" value={selectedCard.price} onChange={e => updateCard(selectedCard.id, 'price', parseFloat(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" step="0.01" />
+                        <input type="number" step="any" value={selectedCard.price || ''} onChange={e => updateCard(selectedCard.id, 'price', parseFloat(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0.00" />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Stock</label>
-                        <input type="number" value={selectedCard.stock} onChange={e => updateCard(selectedCard.id, 'stock', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="0" />
+                        <input type="number" step="1" value={selectedCard.stock || ''} onChange={e => updateCard(selectedCard.id, 'stock', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
                       </div>
                     </div>
 
@@ -1712,7 +1873,7 @@ const Admin = () => {
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>% Descuento</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input type="number" value={selectedCampaign.discountPercent} onChange={e => updateCampaign(selectedCampaign.id, 'discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} min="1" max="99" />
+                          <input type="number" step="1" value={selectedCampaign.discountPercent || ''} onChange={e => updateCampaign(selectedCampaign.id, 'discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
                           <span style={{ color: 'var(--text-secondary)', fontSize: '1.2rem' }}>%</span>
                         </div>
                       </div>
@@ -2308,7 +2469,7 @@ const Admin = () => {
               <>
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                   {['all', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map(filter => (
-                    <button key={filter} onClick={() => setOrderFilter(filter)} style={{
+                    <button key={filter} onClick={() => { setOrderFilter(filter); setOrderPage(1); }} style={{
                       padding: '8px 16px',
                       background: orderFilter === filter ? 'var(--accent-gold)' : 'var(--glass-bg)',
                       border: '1px solid',
@@ -2317,23 +2478,98 @@ const Admin = () => {
                       color: orderFilter === filter ? 'white' : 'var(--text-secondary)',
                       fontWeight: '600',
                       cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      textTransform: 'capitalize'
+                      fontSize: '0.8rem'
                     }}>
-                      {filter === 'all' ? 'Todos' : filter.toLowerCase()} 
+                      {filter === 'all' ? 'Todos' : filter === 'PENDING' ? 'pendiente' : filter === 'PROCESSING' ? 'en proceso' : filter === 'SHIPPED' ? 'enviado' : filter === 'DELIVERED' ? 'entregado' : 'cancelado'}
                       {filter !== 'all' && (
                         <span style={{ marginLeft: '4px', opacity: 0.7 }}>
-                          ({orders.filter(o => o.status === filter).length})
+                          ({statusCounts[filter] || 0})
+                        </span>
+                      )}
+                      {filter === 'all' && orderTotal > 0 && (
+                        <span style={{ marginLeft: '4px', opacity: 0.7 }}>
+                          ({Object.values(statusCounts).reduce((a, b) => a + b, 0)})
                         </span>
                       )}
                     </button>
                   ))}
                 </div>
 
+                {/* Pagination */}
+                {orderTotal > ORDER_LIMIT && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '1rem',
+                    padding: '0.75rem 1rem',
+                    background: 'rgba(0,0,0,0.15)',
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: '10px'
+                  }}>
+                    {(() => {
+                      const totalPages = Math.ceil(orderTotal / ORDER_LIMIT);
+                      const pages = [];
+                      const maxVisible = 5;
+                      let startPage = Math.max(1, orderPage - Math.floor(maxVisible / 2));
+                      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                      if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+
+                      for (let i = startPage; i <= endPage; i++) pages.push(i);
+
+                      return (
+                        <>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            Mostrando {((orderPage - 1) * ORDER_LIMIT) + 1}–{Math.min(orderPage * ORDER_LIMIT, orderTotal)} de {orderTotal}
+                          </span>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <button
+                              onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                              disabled={orderPage === 1}
+                              style={{
+                                padding: '4px 10px', borderRadius: '6px',
+                                background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
+                                color: orderPage === 1 ? 'var(--glass-border)' : 'var(--text-primary)',
+                                cursor: orderPage === 1 ? 'default' : 'pointer', fontSize: '0.8rem'
+                              }}
+                            >
+                              ‹
+                            </button>
+                            {pages.map(p => (
+                              <button key={p} onClick={() => setOrderPage(p)} style={{
+                                padding: '4px 10px', borderRadius: '6px', minWidth: '32px',
+                                background: p === orderPage ? 'var(--accent-gold)' : 'var(--glass-bg)',
+                                border: `1px solid ${p === orderPage ? 'var(--accent-gold)' : 'var(--glass-border)'}`,
+                                color: p === orderPage ? 'white' : 'var(--text-primary)',
+                                cursor: 'pointer', fontSize: '0.8rem', fontWeight: p === orderPage ? '700' : '400'
+                              }}>{p}</button>
+                            ))}
+                            <button
+                              onClick={() => setOrderPage(p => Math.min(totalPages, p + 1))}
+                              disabled={orderPage === totalPages}
+                              style={{
+                                padding: '4px 10px', borderRadius: '6px',
+                                background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
+                                color: orderPage === totalPages ? 'var(--glass-border)' : 'var(--text-primary)',
+                                cursor: orderPage === totalPages ? 'default' : 'pointer', fontSize: '0.8rem'
+                              }}
+                            >
+                              ›
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
                 {filteredOrders.length === 0 ? (
                   <div style={{ padding: '3rem', textAlign: 'center', background: 'var(--glass-bg)', border: '1px dashed var(--glass-border)', borderRadius: '12px' }}>
                     <Package size={48} color="var(--glass-border)" style={{ marginBottom: '1rem' }} />
-                    <p style={{ color: 'var(--text-secondary)' }}>No hay pedidos {orderFilter !== 'all' ? `con estado ${orderFilter.toLowerCase()}` : 'registrados'}</p>
+                    <p style={{ color: 'var(--text-secondary)' }}>
+                      No hay pedidos {orderFilter !== 'all' ? `con estado ${orderFilter === 'PENDING' ? 'pendiente' : orderFilter === 'PROCESSING' ? 'en proceso' : orderFilter === 'SHIPPED' ? 'enviado' : orderFilter === 'DELIVERED' ? 'entregado' : 'cancelado'}` : 'registrados'}
+                    </p>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -2364,7 +2600,7 @@ const Admin = () => {
                               color: statusColors[order.status]?.color || '#6b7280',
                               textTransform: 'uppercase'
                             }}>
-                              {order.status}
+                              {order.status === 'PENDING' ? 'Pendiente' : order.status === 'PROCESSING' ? 'En proceso' : order.status === 'SHIPPED' ? 'Enviado' : order.status === 'DELIVERED' ? 'Entregado' : 'Cancelado'}
                             </span>
                             {order.status === 'PENDING' || order.status === 'PROCESSING' ? (
                               <button 
@@ -2496,26 +2732,50 @@ const Admin = () => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '0.8rem', padding: '0 0.3rem' }}>Secciones</p>
 
         <ul style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-          {sections.map(s => {
-            const pendingCount = s.id === 'orders' ? orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED').length : 0;
+          {AdminSections({ unreadOrders, unreadMessages }).map(s => {
+            const notificationBadge = s.badge || null;
+            const isActive = active === s.id;
+            
             return (
             <li key={s.id} onClick={() => setActive(s.id)} style={{
               padding: '9px 12px', borderRadius: '7px',
-              background: active === s.id ? 'rgba(245,158,11,0.15)' : 'transparent',
-              color: active === s.id ? 'var(--accent-gold)' : 'var(--text-secondary)',
-              fontWeight: active === s.id ? '700' : '500',
+              background: isActive ? 'rgba(245,158,11,0.15)' : 'transparent',
+              color: isActive ? 'var(--accent-gold)' : 'var(--text-secondary)',
+              fontWeight: isActive ? '700' : '500',
               fontSize: '0.88rem',
               display: 'flex', alignItems: 'center', gap: '9px', cursor: 'pointer',
-              border: active === s.id ? '1px solid rgba(245,158,11,0.3)' : '1px solid transparent',
+              border: isActive ? '1px solid rgba(245,158,11,0.3)' : '1px solid transparent',
               fontFamily: 'var(--font-heading)', transition: 'all 0.15s',
             }}
-              onMouseEnter={e => { if (active !== s.id) e.currentTarget.style.color = 'white'; }}
-              onMouseLeave={e => { if (active !== s.id) e.currentTarget.style.color = 'var(--text-secondary)'; }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'white'; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
               {s.icon} {s.label}
-              {pendingCount > 0 && (
-                <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px', marginLeft: 'auto' }}>
-                  {pendingCount}
+              {notificationBadge && (
+                <span style={{ 
+                  background: isActive ? '#10b981' : '#ef4444', 
+                  color: '#fff', 
+                  fontSize: '0.7rem', 
+                  padding: '2px 6px', 
+                  borderRadius: '10px', 
+                  marginLeft: 'auto', 
+                  fontWeight: 'bold',
+                  transition: 'background 0.3s'
+                }}>
+                  {notificationBadge}
+                </span>
+              )}
+              {!notificationBadge && s.id === 'orders' && unreadOrders > 0 && (
+                <span style={{
+                  background: isActive ? '#10b981' : '#3b82f6',
+                  color: '#fff',
+                  fontSize: '0.7rem',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  marginLeft: 'auto',
+                  transition: 'background 0.3s'
+                }}>
+                  {unreadOrders}
                 </span>
               )}
             </li>
