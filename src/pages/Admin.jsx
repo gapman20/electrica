@@ -663,14 +663,15 @@ const Admin = () => {
     );
     
     if (existingCard) {
+      // If card exists, ask to add another copy (increase stock)
       const result = await Swal.fire({
         title: '⚠️ Carta duplicada',
-        text: `"${newCard.name}" de "${newCard.set}" ya existe en tu inventario. ¿Qué deseas hacer?`,
+        text: `"${newCard.name}" de "${newCard.set}" ya existe. ¿Querés aumentar el stock?`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#10b981',
         cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Agregar otra copia',
+        confirmButtonText: 'Sí, aumentar stock',
         cancelButtonText: 'Cancelar',
         background: 'rgba(15, 23, 42, 0.95)',
         color: '#fff',
@@ -678,6 +679,19 @@ const Admin = () => {
       
       if (!result.isConfirmed) {
         return;
+      }
+      
+      // Update existing card stock + 1
+      try {
+        const updatedStock = existingCard.stock + 1;
+        await api.cards.update(existingCard.id, { stock: updatedStock });
+        setCards(prev => prev.map(c => c.id === existingCard.id ? { ...c, stock: updatedStock } : c));
+        toast.success(`Stock de "${newCard.name}" aumentado a ${updatedStock}`);
+        setSearchResults([]);
+        setSearchQuery('');
+        return;
+      } catch (err) {
+        console.error('Error updating stock:', err);
       }
     }
     
