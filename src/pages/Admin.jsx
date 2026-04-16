@@ -9,6 +9,7 @@ import pokemonTcgApi from '../services/pokemonTcgApi';
 import pokewalletApi from '../services/pokewalletApi';
 import currencyApi from '../services/currencyApi';
 import api, { getGameValue, orderApi } from '../services/api';
+import { GAMES } from '../components/GameFilter';
 import Swal from 'sweetalert2';
 import {
   LayoutDashboard, FileText, Settings, Mail, Info,
@@ -69,6 +70,35 @@ const inputSt = {
 };
 const focus = e => (e.target.style.borderColor = 'var(--accent-gold)');
 const blur = e => (e.target.style.borderColor = 'var(--glass-border)');
+
+// Global CSS for select elements
+const globalSelectStyles = `
+  select {
+    background-color: rgba(255,255,255,0.04) !important;
+    color: #f3f4f6 !important;
+    border: 1px solid var(--glass-border) !important;
+    padding: 8px 12px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 16px !important;
+    cursor: pointer !important;
+  }
+  select option {
+    background: #0f172a !important;
+    color: #f3f4f6 !important;
+    padding: 12px 12px !important;
+    margin: 0 !important;
+    border: none !important;
+    border-bottom: 1px solid #1e293b !important;
+  }
+  select option:last-child {
+    border-bottom: none !important;
+  }
+`;
 
 const sectionTitle = {
   fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: '800',
@@ -223,6 +253,17 @@ const AdminSections = ({ unreadOrders, unreadMessages }) => [
 
 // ─── Main Admin Component ─────────────────────────────────────────────────────
 const Admin = () => {
+  // Inject global select styles on mount
+  useEffect(() => {
+    const styleId = 'select-styles-admin';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = globalSelectStyles;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   const {
     content, updateContent, updateServiceCard, moveServiceCard,
     images, updateImage,
