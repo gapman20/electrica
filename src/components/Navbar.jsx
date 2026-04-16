@@ -80,6 +80,7 @@ const Navbar = () => {
             <Link to={isLoggedIn ? '/mi-cuenta' : '/login'} className="user-icon-btn">
               <User size={22} />
             </Link>
+            <ThemeToggle />
           </div>
           <div className="menu-icon" onClick={() => setIsOpen(!isOpen)}>
             {isOpen ? <X size={28} /> : <Menu size={28} />}
@@ -126,7 +127,7 @@ const Navbar = () => {
             )}
           </li>
           
-          <li>
+          <li className="theme-toggle-desktop">
             <ThemeToggle />
           </li>
           

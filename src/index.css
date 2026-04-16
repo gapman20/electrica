@@ -407,7 +407,13 @@ body.light-theme .theme-toggle:hover {
   }
 
   .user-menu-mobile {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .theme-toggle-desktop {
+    display: none;
   }
 
   .desktop-cart {
