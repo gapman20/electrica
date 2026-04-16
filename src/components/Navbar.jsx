@@ -4,6 +4,7 @@ import { Menu, X, Heart, User, Settings } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { useWishlist } from '../context/WishlistContext';
 import CartButton from './CartButton';
+import ThemeToggle from './ThemeToggle';
 
 const USER_KEY = 'tcg_user';
 const AUTH_KEY = 'is_authenticated';
@@ -123,6 +124,10 @@ const Navbar = () => {
                 <span>Iniciar Sesión</span>
               </Link>
             )}
+          </li>
+          
+          <li>
+            <ThemeToggle />
           </li>
           
           <li className="nav-cart-item desktop-cart">

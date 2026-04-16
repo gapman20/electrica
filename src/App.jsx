@@ -11,6 +11,7 @@ import WhatsAppButton from './components/WhatsAppButton';
 import ScrollToTop from './components/ScrollToTop';
 import PageLoader from './components/PageLoader';
 import ErrorBoundary from './components/ErrorBoundary';
+import ThemeInitializer from './components/ThemeInitializer';
 import NotFound from './pages/NotFound';
 
 // Lazy Loaded Pages
@@ -76,6 +77,7 @@ const AppContent = () => {
 
   return (
     <div className="app-container">
+      <ThemeInitializer />
       <ScrollToTop />
       <Navbar />
       <main>
