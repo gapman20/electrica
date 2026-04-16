@@ -39,6 +39,7 @@ const Checkout = React.lazy(() => import('./pages/Checkout'));
 const OrderTracking = React.lazy(() => import('./pages/OrderTracking'));
 const OrderConfirmation = React.lazy(() => import('./pages/OrderConfirmation'));
 const Wishlist = React.lazy(() => import('./pages/Wishlist'));
+const Offers = React.lazy(() => import('./pages/Offers'));
 
 const AppContent = () => {
   const { pages, isAuthenticated } = useSite();
@@ -102,6 +103,7 @@ const AppContent = () => {
               <Route path="/registro" element={<Register />} />
               <Route path="/mi-cuenta" element={<MyAccount />} />
               <Route path="/recuperar-password" element={<ForgotPassword />} />
+              <Route path="/ofertas" element={<Offers />} />
 
               {/* Dynamic Pages from SiteContext */}
               {pages.filter(p => p.active).map(page => (
