@@ -629,7 +629,7 @@ export const SiteProvider = ({ children }) => {
       discountPercent: 10,
       startDate: new Date().toISOString(),
       endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      active: true,
+      active: false, // IMPORTANTE: false por defecto para que no se muestre hasta que el admin la active
       bannerText: '¡Oferta Especial!',
       bannerColor: '#f59e0b',
       selectedProducts: [],
@@ -754,7 +754,7 @@ export const SiteProvider = ({ children }) => {
       products, createProduct, updateProduct, deleteProduct, moveProduct,
       analytics, trackAnalytics,
       inbox, addMessage, markMessageRead, deleteMessage, loadMessages,
-      campaigns, createCampaign, updateCampaign, deleteCampaign,
+      campaigns, setCampaigns, createCampaign, updateCampaign, deleteCampaign,
       getActiveCampaign, calculateDiscountedPrice,
       isAuthenticated, login, logout, changePassword,
       saveContent, resetContent, saveStatus, loadingDb,
