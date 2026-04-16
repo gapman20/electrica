@@ -134,12 +134,20 @@ const ProductCard = ({ item, type = 'product' }) => {
           {itemSet && <span className="product-tag">{itemSet}</span>}
         </div>
         <h3 className="product-name">{item.name}</h3>
-        <div className="product-price">
+        
+        {/* Price Section */}
+        <div className="product-price-section">
           {originalPriceDisplay && (
-            <span className="price-original">{originalPriceDisplay}</span>
+            <div className="price-with-discount">
+              <span className="price-original">{originalPriceDisplay}</span>
+              <span className="price-current">{priceDisplay}</span>
+            </div>
           )}
-          <span className="price-current">{priceDisplay}</span>
+          {!originalPriceDisplay && (
+            <span className="price-current">{priceDisplay}</span>
+          )}
         </div>
+        
         <button 
           className="add-to-cart-btn"
           onClick={handleAddToCart}
