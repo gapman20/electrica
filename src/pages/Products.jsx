@@ -174,7 +174,6 @@ const Products = () => {
           ...product,
           image: product.imageUrl,
           game: typeof product.game === 'object' ? product.game.name : product.game,
-          priceDisplay: formatPrice(product.price)
         })));
       } catch (e) {
         console.error('Error loading products from API:', e);

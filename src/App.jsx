@@ -11,6 +11,7 @@ import WhatsAppButton from './components/WhatsAppButton';
 import ScrollToTop from './components/ScrollToTop';
 import PageLoader from './components/PageLoader';
 import ErrorBoundary from './components/ErrorBoundary';
+import ThemeInitializer from './components/ThemeInitializer';
 import NotFound from './pages/NotFound';
 
 // Lazy Loaded Pages
@@ -39,6 +40,7 @@ const Checkout = React.lazy(() => import('./pages/Checkout'));
 const OrderTracking = React.lazy(() => import('./pages/OrderTracking'));
 const OrderConfirmation = React.lazy(() => import('./pages/OrderConfirmation'));
 const Wishlist = React.lazy(() => import('./pages/Wishlist'));
+const Offers = React.lazy(() => import('./pages/Offers'));
 
 const AppContent = () => {
   const { pages, isAuthenticated } = useSite();
@@ -75,6 +77,7 @@ const AppContent = () => {
 
   return (
     <div className="app-container">
+      <ThemeInitializer />
       <ScrollToTop />
       <Navbar />
       <main>
@@ -102,6 +105,7 @@ const AppContent = () => {
               <Route path="/registro" element={<Register />} />
               <Route path="/mi-cuenta" element={<MyAccount />} />
               <Route path="/recuperar-password" element={<ForgotPassword />} />
+              <Route path="/ofertas" element={<Offers />} />
 
               {/* Dynamic Pages from SiteContext */}
               {pages.filter(p => p.active).map(page => (

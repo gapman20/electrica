@@ -19,7 +19,7 @@ import {
   ToggleLeft, ToggleRight, RefreshCw, Plus, Trash2, Package,
   Columns, ArrowUp, ArrowDown, Bold, List, BarChart, Lock,
   Gamepad2, Layers, Tag, Calendar, Percent, Search,
-  Truck
+  Truck, Rocket
 } from 'lucide-react';
 
 const getMonday = (date) => {
@@ -272,7 +272,7 @@ const Admin = () => {
     products = [], createProduct, updateProduct, deleteProduct, moveProduct,
     analytics, trackAnalytics,
     inbox = [], markMessageRead, deleteMessage, loadMessages, logout,
-    campaigns = [], createCampaign, updateCampaign, deleteCampaign,
+    campaigns = [], setCampaigns, createCampaign, updateCampaign, deleteCampaign,
     saveContent, resetContent, saveStatus,
   } = useSite();
   const navigate = useNavigate();
@@ -304,6 +304,119 @@ const Admin = () => {
 
   // Campaigns state
   const [editingCampaign, setEditingCampaign] = useState(null);
+  const [campaignDraft, setCampaignDraft] = useState(null);
+  const [campaignHasChanges, setCampaignHasChanges] = useState(false);
+  const [originalCampaignValues, setOriginalCampaignValues] = useState(null);
+
+  // Campaign draft functions
+  const handleSelectCampaign = (campaignId) => {
+    // If there are unsaved changes, ask to discard
+    if (campaignHasChanges) {
+      Swal.fire({
+        title: '¿Descartar cambios?',
+        text: 'Tienes cambios sin guardar. ¿Quieres descartarlos?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, descartar',
+        cancelButtonText: 'Cancelar',
+        background: 'rgba(15, 23, 42, 0.95)',
+        color: '#fff',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          selectCampaignInternal(campaignId);
+        }
+      });
+    } else {
+      selectCampaignInternal(campaignId);
+    }
+  };
+
+  const selectCampaignInternal = (campaignId) => {
+    setEditingCampaign(campaignId);
+    const campaign = campaigns.find(c => c.id === campaignId);
+    if (campaign) {
+      // Deep clone to avoid reference issues
+      setCampaignDraft(JSON.parse(JSON.stringify(campaign)));
+      setOriginalCampaignValues(JSON.parse(JSON.stringify(campaign)));
+      setCampaignHasChanges(false);
+    }
+  };
+
+  const updateCampaignDraft = (field, value) => {
+    setCampaignDraft(prev => {
+      if (!prev) return prev;
+      return { ...prev, [field]: value };
+    });
+    setCampaignHasChanges(true);
+  };
+
+  const saveCampaignChanges = () => {
+    if (!campaignDraft || !editingCampaign) return;
+    
+    // Update each field that changed
+    Object.keys(campaignDraft).forEach(key => {
+      const originalValue = originalCampaignValues ? originalCampaignValues[key] : undefined;
+      if (campaignDraft[key] !== originalValue) {
+        updateCampaign(editingCampaign, key, campaignDraft[key]);
+      }
+    });
+    
+    // Also check for new fields
+    if (originalCampaignValues) {
+      Object.keys(campaignDraft).forEach(key => {
+        if (!(key in originalCampaignValues)) {
+          updateCampaign(editingCampaign, key, campaignDraft[key]);
+        }
+      });
+    }
+    
+    showSuccessAlert('¡Cambios guardados!', 'La campaña se ha guardado correctamente.');
+    setCampaignHasChanges(false);
+    setOriginalCampaignValues(JSON.parse(JSON.stringify(campaignDraft)));
+  };
+
+  const cancelCampaignChanges = () => {
+    if (!originalCampaignValues) return;
+    
+    // Restore original values
+    setCampaignDraft(JSON.parse(JSON.stringify(originalCampaignValues)));
+    setCampaignHasChanges(false);
+    toast.info('Cambios descartados');
+  };
+
+  const saveAndLaunchCampaign = () => {
+    if (!campaignDraft || !editingCampaign) return;
+    
+    // First save all changes
+    Object.keys(campaignDraft).forEach(key => {
+      const originalValue = originalCampaignValues ? originalCampaignValues[key] : undefined;
+      if (campaignDraft[key] !== originalValue) {
+        updateCampaign(editingCampaign, key, campaignDraft[key]);
+      }
+    });
+    
+    // Then activate the campaign
+    updateCampaign(editingCampaign, 'active', true);
+    
+    // Update draft and original values to reflect the active state
+    setCampaignDraft(prev => ({ ...prev, active: true }));
+    setOriginalCampaignValues(prev => ({ ...prev, active: true }));
+    
+    showSuccessAlert('¡Campaña Activada!', 'La campaña se ha guardado y está ahora activa.');
+    setCampaignHasChanges(false);
+  };
+
+  const deactivateCampaign = () => {
+    if (!campaignDraft || !editingCampaign) return;
+    
+    updateCampaign(editingCampaign, 'active', false);
+    setCampaignDraft(prev => ({ ...prev, active: false }));
+    setOriginalCampaignValues(prev => ({ ...prev, active: false }));
+    
+    showSuccessAlert('Campaña Desactivada', 'La campaña ha sido desactivada.');
+  };
 
   // Real-time notifications state
   const [unreadOrders, setUnreadOrders] = useState(0);
@@ -1939,7 +2052,8 @@ const Admin = () => {
 
       // ── Campañas de Oferta ────────────────────────────────────────────────
       case 'campaigns': {
-        const selectedCampaign = editingCampaign ? campaigns.find(c => c.id === editingCampaign) : null;
+        // Use campaignDraft instead of selectedCampaign for editing
+        const selectedCampaign = campaignDraft;
         const activeCampaign = campaigns.find(c => {
           if (!c.active) return false;
           const now = new Date();
@@ -1976,7 +2090,31 @@ const Admin = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(350px, 450px) 1fr', gap: '2rem', alignItems: 'start' }}>
               {/* Campaigns List */}
               <div>
-                <button onClick={() => setEditingCampaign(createCampaign())} style={{ width: '100%', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'var(--accent-gold)', border: 'none', borderRadius: '10px', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', fontFamily: 'var(--font-heading)' }}>
+                <button onClick={() => {
+                  // Create the campaign object directly to avoid timing issues
+                  const newCampaign = {
+                    id: `camp-${Date.now()}`,
+                    name: 'Nueva Campaña',
+                    discountPercent: 10,
+                    startDate: new Date().toISOString(),
+                    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                    active: false,
+                    bannerText: '¡Oferta Especial!',
+                    bannerColor: '#f59e0b',
+                    selectedProducts: [],
+                  };
+                  
+                  // Add to campaigns state and persist to localStorage
+                  setCampaigns(prev => {
+                    const updated = [newCampaign, ...prev];
+                    localStorage.setItem('site_campaigns_v1', JSON.stringify(updated));
+                    return updated;
+                  });
+                  setEditingCampaign(newCampaign.id);
+                  setCampaignDraft(JSON.parse(JSON.stringify(newCampaign)));
+                  setOriginalCampaignValues(JSON.parse(JSON.stringify(newCampaign)));
+                  setCampaignHasChanges(true); // Mark as has changes since it's a new campaign
+                }} style={{ width: '100%', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'var(--accent-gold)', border: 'none', borderRadius: '10px', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', fontFamily: 'var(--font-heading)' }}>
                   <Plus size={18} /> Nueva Campaña
                 </button>
 
@@ -1990,7 +2128,7 @@ const Admin = () => {
                     
                     return (
                       <div key={camp.id}
-                        onClick={() => setEditingCampaign(camp.id)}
+                        onClick={() => handleSelectCampaign(camp.id)}
                         style={{
                           padding: '1rem',
                           background: editingCampaign === camp.id ? 'rgba(245,158,11,0.15)' : 'var(--glass-bg)',
@@ -2039,13 +2177,92 @@ const Admin = () => {
               <div>
                 {selectedCampaign ? (
                   <div style={{ padding: '1.5rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '12px' }}>
+                    {/* Status banner */}
+                    {!selectedCampaign?.active && (
+                      <div style={{ marginBottom: '1rem', padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <AlertCircle size={18} color="#ef4444" />
+                        <span style={{ fontSize: '0.85rem', color: '#ef4444' }}>
+                          <strong>Campaña Inactiva</strong> — Los clientes no pueden ver esta campaña. Configura y usa "Guardar y Lanzar" cuando esté lista.
+                        </span>
+                      </div>
+                    )}
+                    {selectedCampaign?.active && (
+                      <div style={{ marginBottom: '1rem', padding: '10px 14px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <CheckCircle size={18} color="#10b981" />
+                        <span style={{ fontSize: '0.85rem', color: '#10b981' }}>
+                          <strong>Campaña Activa</strong> — Visible para todos los clientes.
+                        </span>
+                      </div>
+                    )}
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <h4 style={{ fontFamily: 'var(--font-heading)', fontWeight: '700', fontSize: '1.1rem' }}>Editando Campaña</h4>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => { if (confirm('¿Eliminar esta campaña?')) { deleteCampaign(selectedCampaign.id); setEditingCampaign(null); }}} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h4 style={{ fontFamily: 'var(--font-heading)', fontWeight: '700', fontSize: '1.1rem' }}>Editando Campaña</h4>
+                        {campaignHasChanges && (
+                          <span style={{ fontSize: '0.7rem', padding: '3px 8px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', borderRadius: '4px', fontWeight: 'bold' }}>
+                            ● Cambios sin guardar
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {campaignHasChanges && (
+                          <button onClick={cancelCampaignChanges} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <RotateCcw size={14} /> Cancelar
+                          </button>
+                        )}
+                        
+                        {/* Launch/Save buttons based on active status */}
+                        {selectedCampaign?.active ? (
+                          // Campaign is active - show Save and Deactivate
+                          <>
+                            <button onClick={saveCampaignChanges} style={{ background: '#10b981', border: 'none', color: 'white', padding: '6px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Save size={14} /> Guardar
+                            </button>
+                            <button onClick={deactivateCampaign} style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <ToggleLeft size={14} /> Desactivar
+                            </button>
+                          </>
+                        ) : (
+                          // Campaign is inactive - show Save and Launch
+                          <>
+                            <button onClick={saveCampaignChanges} style={{ background: 'rgba(107,114,128,0.3)', border: '1px solid rgba(107,114,128,0.5)', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Save size={14} /> Guardar
+                            </button>
+                            <button onClick={saveAndLaunchCampaign} style={{ background: '#10b981', border: 'none', color: 'white', padding: '6px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Rocket size={14} /> Guardar y Lanzar
+                            </button>
+                          </>
+                        )}
+                        
+                        <button onClick={() => { if (confirm('¿Eliminar esta campaña?')) { deleteCampaign(selectedCampaign.id); setEditingCampaign(null); setCampaignDraft(null); setCampaignHasChanges(false); }}} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Trash2 size={14} /> Eliminar
                         </button>
-                        <button onClick={() => setEditingCampaign(null)} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                        <button onClick={() => {
+                          if (campaignHasChanges) {
+                            Swal.fire({
+                              title: '¿Descartar cambios?',
+                              text: 'Tienes cambios sin guardar. ¿Quieres cerrarlo de todos modos?',
+                              icon: 'warning',
+                              showCancelButton: true,
+                              confirmButtonColor: '#ef4444',
+                              cancelButtonColor: '#6b7280',
+                              confirmButtonText: 'Sí, cerrar',
+                              cancelButtonText: 'Cancelar',
+                              background: 'rgba(15, 23, 42, 0.95)',
+                              color: '#fff',
+                            }).then((result) => {
+                              if (result.isConfirmed) {
+                                setEditingCampaign(null);
+                                setCampaignDraft(null);
+                                setCampaignHasChanges(false);
+                              }
+                            });
+                          } else {
+                            setEditingCampaign(null);
+                            setCampaignDraft(null);
+                            setCampaignHasChanges(false);
+                          }
+                        }} style={{ background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
                           Cerrar
                         </button>
                       </div>
@@ -2053,21 +2270,21 @@ const Admin = () => {
 
                     <div style={{ marginBottom: '1.5rem' }}>
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Nombre de la Campaña</label>
-                      <input value={selectedCampaign.name} onChange={e => updateCampaign(selectedCampaign.id, 'name', e.target.value)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="Ej: Navidad 2024" />
+                      <input value={selectedCampaign.name} onChange={e => updateCampaignDraft('name', e.target.value)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="Ej: Navidad 2024" />
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>% Descuento</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input type="number" step="1" value={selectedCampaign.discountPercent || ''} onChange={e => updateCampaign(selectedCampaign.id, 'discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
+                          <input type="number" step="1" value={selectedCampaign.discountPercent || ''} onChange={e => updateCampaignDraft('discountPercent', parseInt(e.target.value) || 0)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="0" />
                           <span style={{ color: 'var(--text-secondary)', fontSize: '1.2rem' }}>%</span>
                         </div>
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Color del Banner</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input type="color" value={selectedCampaign.bannerColor || '#ef4444'} onChange={e => updateCampaign(selectedCampaign.id, 'bannerColor', e.target.value)} style={{ width: '40px', height: '36px', border: 'none', borderRadius: '6px', cursor: 'pointer', padding: '2px', background: 'transparent' }} />
+                          <input type="color" value={selectedCampaign.bannerColor || '#ef4444'} onChange={e => updateCampaignDraft('bannerColor', e.target.value)} style={{ width: '40px', height: '36px', border: 'none', borderRadius: '6px', cursor: 'pointer', padding: '2px', background: 'transparent' }} />
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{selectedCampaign.bannerColor}</span>
                         </div>
                       </div>
@@ -2076,22 +2293,22 @@ const Admin = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Fecha Inicio</label>
-                        <input type="datetime-local" value={selectedCampaign.startDate?.slice(0, 16)} onChange={e => updateCampaign(selectedCampaign.id, 'startDate', new Date(e.target.value).toISOString())} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} />
+                        <input type="datetime-local" value={selectedCampaign.startDate?.slice(0, 16)} onChange={e => updateCampaignDraft('startDate', new Date(e.target.value).toISOString())} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Fecha Fin</label>
-                        <input type="datetime-local" value={selectedCampaign.endDate?.slice(0, 16)} onChange={e => updateCampaign(selectedCampaign.id, 'endDate', new Date(e.target.value).toISOString())} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} />
+                        <input type="datetime-local" value={selectedCampaign.endDate?.slice(0, 16)} onChange={e => updateCampaignDraft('endDate', new Date(e.target.value).toISOString())} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} />
                       </div>
                     </div>
 
                     <div style={{ marginBottom: '1.5rem' }}>
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Texto del Banner</label>
-                      <input value={selectedCampaign.bannerText || ''} onChange={e => updateCampaign(selectedCampaign.id, 'bannerText', e.target.value)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="Ej: ¡Black Friday! Hasta 30% OFF" />
+                      <input value={selectedCampaign.bannerText || ''} onChange={e => updateCampaignDraft('bannerText', e.target.value)} style={{ ...inputSt, padding: '8px 12px', fontSize: '0.9rem' }} placeholder="Ej: ¡Black Friday! Hasta 30% OFF" />
                     </div>
 
                     <div style={{ marginBottom: '1rem' }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                        <input type="checkbox" checked={selectedCampaign.active} onChange={e => updateCampaign(selectedCampaign.id, 'active', e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                        <input type="checkbox" checked={selectedCampaign.active} onChange={e => updateCampaignDraft('active', e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
                         Campaña Activa
                       </label>
                       <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px', marginLeft: '28px' }}>Solo las activas se mostrarán en el sitio</p>
@@ -2101,11 +2318,11 @@ const Admin = () => {
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Aplicar descuento a:</label>
                       <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.8rem' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: productScope === 'all' ? 'white' : 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
-                          <input type="radio" name={`productScope-${selectedCampaign.id}`} checked={productScope === 'all'} onChange={() => updateCampaign(selectedCampaign.id, 'selectedProducts', [])} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                          <input type="radio" name={`productScope-${selectedCampaign.id}`} checked={productScope === 'all'} onChange={() => updateCampaignDraft('selectedProducts', [])} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                           Todos los productos
                         </label>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: productScope === 'selected' ? 'white' : 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500' }}>
-                          <input type="radio" name={`productScope-${selectedCampaign.id}`} checked={productScope === 'selected'} onChange={() => { if (selectedProducts.length === 0) updateCampaign(selectedCampaign.id, 'selectedProducts', allProducts.map(p => p.id)); }} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                          <input type="radio" name={`productScope-${selectedCampaign.id}`} checked={productScope === 'selected'} onChange={() => { if (selectedProducts.length === 0) updateCampaignDraft('selectedProducts', allProducts.map(p => p.id)); }} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                           Productos seleccionados
                         </label>
                       </div>
@@ -2119,8 +2336,8 @@ const Admin = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
                           <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Seleccionar Productos:</label>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button onClick={() => updateCampaign(selectedCampaign.id, 'selectedProducts', allProducts.map(p => p.id))} style={{ padding: '4px 8px', fontSize: '0.7rem', background: 'rgba(245,158,11,0.2)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '4px', color: '#f59e0b', cursor: 'pointer' }}>Todos</button>
-                            <button onClick={() => updateCampaign(selectedCampaign.id, 'selectedProducts', [])} style={{ padding: '4px 8px', fontSize: '0.7rem', background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '4px', color: '#ef4444', cursor: 'pointer' }}>Ninguno</button>
+                            <button onClick={() => updateCampaignDraft('selectedProducts', allProducts.map(p => p.id))} style={{ padding: '4px 8px', fontSize: '0.7rem', background: 'rgba(245,158,11,0.2)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '4px', color: '#f59e0b', cursor: 'pointer' }}>Todos</button>
+                            <button onClick={() => updateCampaignDraft('selectedProducts', [])} style={{ padding: '4px 8px', fontSize: '0.7rem', background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '4px', color: '#ef4444', cursor: 'pointer' }}>Ninguno</button>
                           </div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -2130,7 +2347,7 @@ const Admin = () => {
                                 const newSelected = selectedProducts.includes(product.id)
                                   ? selectedProducts.filter(id => id !== product.id)
                                   : [...selectedProducts, product.id];
-                                updateCampaign(selectedCampaign.id, 'selectedProducts', newSelected);
+                                updateCampaignDraft('selectedProducts', newSelected);
                               }} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</span>

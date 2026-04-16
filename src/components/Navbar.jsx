@@ -4,6 +4,7 @@ import { Menu, X, Heart, User, Settings } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { useWishlist } from '../context/WishlistContext';
 import CartButton from './CartButton';
+import ThemeToggle from './ThemeToggle';
 
 const USER_KEY = 'tcg_user';
 const AUTH_KEY = 'is_authenticated';
@@ -79,6 +80,7 @@ const Navbar = () => {
             <Link to={isLoggedIn ? '/mi-cuenta' : '/login'} className="user-icon-btn">
               <User size={22} />
             </Link>
+            <ThemeToggle />
           </div>
           <div className="menu-icon" onClick={() => setIsOpen(!isOpen)}>
             {isOpen ? <X size={28} /> : <Menu size={28} />}
@@ -123,6 +125,10 @@ const Navbar = () => {
                 <span>Iniciar Sesión</span>
               </Link>
             )}
+          </li>
+          
+          <li className="theme-toggle-desktop">
+            <ThemeToggle />
           </li>
           
           <li className="nav-cart-item desktop-cart">

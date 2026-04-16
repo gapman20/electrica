@@ -96,7 +96,7 @@ const Home = () => {
       title: 'Ofertas de Temporada',
       subtitle: 'Hasta 50% de descuento',
       image: 'https://images.unsplash.com/photo-1606663889134-b1dedb5ed8b7?w=1600',
-      link: '/catalogo?filter=oferta'
+      link: '/ofertas'
     }
   ];
 
@@ -323,40 +323,13 @@ const Home = () => {
               <h2>{activeCampaign.name} — {activeCampaign.discountPercent}% de descuento</h2>
               <p>{activeCampaign.selectedProducts?.length > 0 ? `En productos seleccionados` : 'En todos los productos'}</p>
               <CountdownTimer targetDate={activeCampaign.endDate} />
-              <Link to="/catalogo?filter=oferta" className="btn-primary">
+              <Link to="/ofertas" className="btn-primary">
                 Ver Ofertas <ArrowRight size={18} />
               </Link>
             </div>
           </div>
         </section>
       )}
-
-      {/* Offers Section */}
-      <section className="offers-section">
-        <div className="container">
-          <div className="section-header">
-            <div>
-              <h2><Clock size={22} /> Ofertas</h2>
-              <p>Productos con precios especiales</p>
-            </div>
-            <Link to="/catalogo?filter=oferta" className="view-all-link">
-              Ver todas <ArrowRight size={16} />
-            </Link>
-          </div>
-          
-          <div className="offers-grid">
-            {loadingProducts ? (
-              <p>Cargando ofertas...</p>
-            ) : offers.length > 0 ? (
-              offers.map(offer => (
-                <ProductCard key={offer.id} item={{ ...offer, badge: 'Oferta' }} type="product" />
-              ))
-            ) : (
-              <p>No hay ofertas disponibles</p>
-            )}
-          </div>
-        </div>
-      </section>
 
       {/* Trust Badges - Horizontal Scroll on Mobile */}
       <section className="trust-section">
