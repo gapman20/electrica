@@ -7,7 +7,6 @@ import { useToast } from '../components/Toast';
 import SEO from '../components/SEO';
 import { cardApi, gameApi } from '../services/api';
 import ProductCard from '../components/ProductCard';
-import { formatPrice } from '../utils/format';
 
 const normalizeCard = (card) => ({
   ...card,
@@ -179,7 +178,6 @@ const Catalog = () => {
           ...card,
           image: card.imageUrl,
           game: typeof card.game === 'object' ? card.game.name : card.game,
-          priceDisplay: formatPrice(card.price)
         })));
       } catch (e) {
         console.error('Error loading cards from API:', e);
