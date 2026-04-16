@@ -76,7 +76,7 @@ const Navbar = () => {
             <CartButton />
           </div>
           <div className="user-menu-mobile">
-            <Link to={isLoggedIn ? '#' : '/login'} className="user-icon-btn">
+            <Link to={isLoggedIn ? '/mi-cuenta' : '/login'} className="user-icon-btn">
               <User size={22} />
             </Link>
           </div>

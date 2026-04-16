@@ -7,7 +7,9 @@ import scryfallApi from '../services/scryfallApi';
 import tcgdexApi from '../services/tcgdexApi';
 import pokemonTcgApi from '../services/pokemonTcgApi';
 import pokewalletApi from '../services/pokewalletApi';
+import currencyApi from '../services/currencyApi';
 import api, { getGameValue, orderApi } from '../services/api';
+import { GAMES } from '../components/GameFilter';
 import Swal from 'sweetalert2';
 import {
   LayoutDashboard, FileText, Settings, Mail, Info,
@@ -68,6 +70,35 @@ const inputSt = {
 };
 const focus = e => (e.target.style.borderColor = 'var(--accent-gold)');
 const blur = e => (e.target.style.borderColor = 'var(--glass-border)');
+
+// Global CSS for select elements
+const globalSelectStyles = `
+  select {
+    background-color: rgba(255,255,255,0.04) !important;
+    color: #f3f4f6 !important;
+    border: 1px solid var(--glass-border) !important;
+    padding: 8px 12px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 10px center !important;
+    background-size: 16px !important;
+    cursor: pointer !important;
+  }
+  select option {
+    background: #0f172a !important;
+    color: #f3f4f6 !important;
+    padding: 12px 12px !important;
+    margin: 0 !important;
+    border: none !important;
+    border-bottom: 1px solid #1e293b !important;
+  }
+  select option:last-child {
+    border-bottom: none !important;
+  }
+`;
 
 const sectionTitle = {
   fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: '800',
@@ -222,6 +253,17 @@ const AdminSections = ({ unreadOrders, unreadMessages }) => [
 
 // ─── Main Admin Component ─────────────────────────────────────────────────────
 const Admin = () => {
+  // Inject global select styles on mount
+  useEffect(() => {
+    const styleId = 'select-styles-admin';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = globalSelectStyles;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   const {
     content, updateContent, updateServiceCard, moveServiceCard,
     images, updateImage,
@@ -272,20 +314,43 @@ const Admin = () => {
   // Scryfall search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [searchResultsImages, setSearchResultsImages] = useState({});
   const [searching, setSearching] = useState(false);
   const [selectedGame, setSelectedGame] = useState('magic');
+  const [exchangeRate, setExchangeRate] = useState(null);
+  const searchInProgressRef = useRef(false);
   
-  // Auto-search in external APIs as you type (500ms debounce)
+  // Load exchange rate on mount
+  useEffect(() => {
+    currencyApi.getExchangeRate().then(rate => setExchangeRate(rate));
+  }, []);
+
+  // Helper to format price in MXN
+  const formatPrice = (priceUSD) => {
+    if (!priceUSD || priceUSD === 0) return 'Sin precio';
+    const price = parseFloat(priceUSD);
+    if (exchangeRate) {
+      const mxn = price * exchangeRate;
+      return `$${mxn.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} MXN`;
+    }
+    return `$${price.toFixed(2)} USD`;
+  };
+  
+  // Auto-search in external APIs as you type (1000ms debounce to avoid rate limits)
   const searchTimeoutRef = useRef(null);
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.length < 3) {
       setSearchResults([]);
       return;
     }
+    // Don't search if already searching (prevents rate limit)
+    if (searching) {
+      return;
+    }
     clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(() => {
       handleCardSearch();
-    }, 800);
+    }, 1000);
     return () => clearTimeout(searchTimeoutRef.current);
   }, [searchQuery]);
   const lastMessageId = React.useRef(null);
@@ -520,19 +585,43 @@ const Admin = () => {
     
     setSearching(true);
     setSearchResults([]);
+    setSearchResultsImages({});
     
     try {
       if (selectedGame === 'pokemon') {
-        // Use PokéWallet API
+        // Use PokéWallet API for Pokémon only
         const result = await pokewalletApi.searchCards(searchQuery, { limit: 20 });
-        setSearchResults(result.results || []);
+        const cards = result.results || [];
+        setSearchResults(cards);
+        
+        // Load images in parallel
+        if (cards.length > 0) {
+          const cardIds = cards.map(c => c.id);
+          const images = await pokewalletApi.getImageUrls(cardIds, 'low');
+          const imageMap = {};
+          images.forEach(img => {
+            imageMap[img.id] = img.url;
+          });
+          setSearchResultsImages(imageMap);
+        }
+      } else if (selectedGame === 'yugioh') {
+        // Use TCGdex API for Yu-Gi-Oh!
+        const result = await tcgdexApi.searchCards(searchQuery, { limit: 20 });
+        setSearchResults(result.results || result.data || []);
       } else {
-        // Use Scryfall for Magic
-        const result = await scryfallApi.searchCards(`${searchQuery} game:${selectedGame}`, { limit: 20 });
+        // Use Scryfall for Magic (default)
+        // Add game filter to search query for better results
+        const gameQuery = `${searchQuery} game:${selectedGame}`;
+        const result = await scryfallApi.searchCards(gameQuery, { limit: 20 });
         setSearchResults(result.data || result.Results || []);
       }
     } catch (error) {
       console.error('Card search error:', error);
+      // Don't show error toast for rate limits (429)
+      if (error.message && error.message.includes('429')) {
+        // Silently ignore rate limits
+        return;
+      }
       toast.error('Error al buscar cartas');
     } finally {
       setSearching(false);
@@ -543,39 +632,63 @@ const Admin = () => {
     let newCard;
     
     if (selectedGame === 'pokemon') {
+      // From PokéWallet API - prices in USD, convert to MXN
       const info = card.card_info || {};
       const tcgPrice = card.tcgplayer?.prices?.[0];
       const cmPrice = card.cardmarket?.prices?.[0];
-      const price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
-      const priceFoil = tcgPrice?.sub_type_name === 'Holofoil' ? tcgPrice?.market_price : null;
+      const priceUSD = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+      const priceFoilUSD = tcgPrice?.sub_type_name === 'Holofoil' ? tcgPrice?.market_price : null;
       
       newCard = {
         id: `card-${Date.now()}`,
-        name: info.name,
+        name: info.name || 'Unknown Card',
         game: 'Pokemon',
-        set: info.set_name || 'Unknown Set',
-        setCode: info.set_code || info.set_id,
+        set: info.set_name || info.set_code || 'Unknown Set',
+        setCode: info.set_code || info.set_id || '',
         rarity: info.rarity?.toLowerCase() || 'rare',
-        price: parseFloat(price).toFixed(2),
-        priceFoil: priceFoil ? parseFloat(priceFoil).toFixed(2) : null,
+        // Store price in MXN (converted from USD)
+        price: exchangeRate ? Math.round(priceUSD * exchangeRate) : Math.round(priceUSD * 20),
+        priceFoil: priceFoilUSD ? (exchangeRate ? Math.round(priceFoilUSD * exchangeRate) : Math.round(priceFoilUSD * 20)) : null,
         stock: 1,
         active: true,
         description: info.card_text || '',
-        imageUrl: `https://api.pokewallet.io/images/${card.id}?size=high`,
+        // Use backend proxy for images to avoid CORS issues
+        imageUrl: `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/pokewallet/images/${card.id}?size=high`,
         condition: 'NM',
         pokemonId: card.id,
       };
-    } else {
-      const price = card.prices?.usd ? parseFloat(card.prices.usd) : 0;
-      const priceFoil = card.prices?.usd_foil ? parseFloat(card.prices.usd_foil) : null;
+    } else if (selectedGame === 'yugioh') {
+      // From TCGdex API - prices in USD, convert to MXN
+      const priceUSD = card.cardPrices?.[0]?.price || card.price || 0;
       newCard = {
         id: `card-${Date.now()}`,
-        name: card.name,
+        name: card.name || 'Unknown Card',
+        game: 'Yu-Gi-Oh',
+        set: card.set || card.localization?.en?.set || 'Unknown Set',
+        setCode: card.setCode || card.id || '',
+        rarity: card.rarity?.toLowerCase() || 'rare',
+        price: exchangeRate ? Math.round(priceUSD * exchangeRate) : Math.round(priceUSD * 20),
+        priceFoil: null,
+        stock: 1,
+        active: true,
+        description: card.description || '',
+        imageUrl: card.image || card.localization?.en?.image || null,
+        condition: 'NM',
+        tcgdexId: card.id,
+      };
+    } else {
+      // From Scryfall API (Magic, etc.) - prices in USD, convert to MXN
+      const priceUSD = card.prices?.usd ? parseFloat(card.prices.usd) : 0;
+      const priceFoilUSD = card.prices?.usd_foil ? parseFloat(card.prices.usd_foil) : null;
+      newCard = {
+        id: `card-${Date.now()}`,
+        name: card.name || 'Unknown Card',
         game: selectedGame.charAt(0).toUpperCase() + selectedGame.slice(1),
-        set: card.set_name,
-        rarity: card.rarity || 'Rare',
-        price: price,
-        priceFoil: priceFoil,
+        set: card.set_name || 'Unknown Set',
+        setCode: card.set || '',
+        rarity: card.rarity?.toLowerCase() || 'rare',
+        price: exchangeRate ? Math.round(priceUSD * exchangeRate) : Math.round(priceUSD * 20),
+        priceFoil: priceFoilUSD ? (exchangeRate ? Math.round(priceFoilUSD * exchangeRate) : Math.round(priceFoilUSD * 20)) : null,
         stock: 1,
         active: true,
         description: card.oracle_text || '',
@@ -583,6 +696,45 @@ const Admin = () => {
         condition: 'NM',
         scryfallId: card.id,
       };
+    }
+    
+    // Check if card already exists by name and set
+    const existingCard = cards.find(c => 
+      c.name?.toLowerCase() === newCard.name?.toLowerCase() && 
+      c.set?.toLowerCase() === newCard.set?.toLowerCase()
+    );
+    
+    if (existingCard) {
+      // If card exists, ask to add another copy (increase stock)
+      const result = await Swal.fire({
+        title: '⚠️ Carta duplicada',
+        text: `"${newCard.name}" de "${newCard.set}" ya existe. ¿Querés aumentar el stock?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, aumentar stock',
+        cancelButtonText: 'Cancelar',
+        background: 'rgba(15, 23, 42, 0.95)',
+        color: '#fff',
+      });
+      
+      if (!result.isConfirmed) {
+        return;
+      }
+      
+      // Update existing card stock + 1
+      try {
+        const updatedStock = existingCard.stock + 1;
+        await api.cards.update(existingCard.id, { stock: updatedStock });
+        setCards(prev => prev.map(c => c.id === existingCard.id ? { ...c, stock: updatedStock } : c));
+        toast.success(`Stock de "${newCard.name}" aumentado a ${updatedStock}`);
+        setSearchResults([]);
+        setSearchQuery('');
+        return;
+      } catch (err) {
+        console.error('Error updating stock:', err);
+      }
     }
     
     try {
@@ -1449,25 +1601,53 @@ const Admin = () => {
               {searchResults.length > 0 && (
                 <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.8rem' }}>
-                    {searchResults.length} resultado(s) encontrado(s)
+                    {searchResults.length} resultado(s) encontrado(s) • {selectedGame === 'pokemon' ? 'PokéWallet' : selectedGame === 'yugioh' ? 'TCGdex' : 'Scryfall'}
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {searchResults.slice(0, 10).map((card, idx) => {
-                      const info = card.card_info || {};
-                      const tcgPrice = card.tcgplayer?.prices?.[0];
-                      const cmPrice = card.cardmarket?.prices?.[0];
-                      const price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+                      // Handle different API response formats
+                      let name, setName, rarity, price, imageUrl;
+                      
+                      if (selectedGame === 'pokemon') {
+                        // PokéWallet format - use cached images
+                        const info = card.card_info || {};
+                        const tcgPrice = card.tcgplayer?.prices?.[0];
+                        const cmPrice = card.cardmarket?.prices?.[0];
+                        name = info.name;
+                        setName = info.set_name || 'Unknown Set';
+                        rarity = info.rarity || 'Rare';
+                        price = tcgPrice?.market_price || tcgPrice?.low_price || cmPrice?.avg || cmPrice?.trend || 0;
+                        imageUrl = searchResultsImages[card.id] || null;
+                      } else if (selectedGame === 'yugioh') {
+                        // TCGdex format
+                        name = card.name;
+                        setName = card.set || card.localization?.en?.set || 'Unknown Set';
+                        rarity = card.rarity || 'Rare';
+                        price = card.cardPrices?.[0]?.price || 0;
+                        imageUrl = card.image || card.localization?.en?.image || null;
+                      } else {
+                        // Scryfall format (Magic)
+                        name = card.name;
+                        setName = card.set_name || 'Unknown Set';
+                        rarity = card.rarity || 'Rare';
+                        price = card.prices?.usd || 0;
+                        imageUrl = card.image_uris?.small || card.image_uris?.normal || card.card_faces?.[0]?.image_uris?.small || null;
+                      }
                       
                       return (
                       <div key={card.id || idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.75rem', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                         <div style={{ width: '50px', height: '70px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.05)' }}>
-                          <img src={`https://api.pokewallet.io/images/${card.id}?size=low`} alt={info.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--text-secondary)' }}>🃏</div>
+                          )}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{info.name}</p>
-                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{info.set_name || 'Unknown Set'} • {info.rarity || 'Rare'}</p>
+                          <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{setName} • {rarity}</p>
                           <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#10b981' }}>
-                            ${parseFloat(price).toFixed(2)}
+                            {formatPrice(price)}
                           </p>
                         </div>
                         <button 
@@ -1526,8 +1706,15 @@ const Admin = () => {
                       onMouseLeave={e => { if (editingCard !== card.id) e.currentTarget.style.borderColor = newCardId === card.id ? 'var(--accent-primary)' : 'var(--glass-border)'; }}
                     >
                       <div style={{ width: '60px', height: '84px', borderRadius: '6px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {card.imageUrl ? (
-                          <img src={card.imageUrl} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {card.imageUrl && !card.imageUrl.startsWith('blob:') ? (
+                          <img 
+                            src={card.imageUrl} 
+                            alt={card.name} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => { 
+                              e.target.style.display = 'none'; 
+                            }}
+                          />
                         ) : (
                           <Layers size={24} color="var(--glass-border)" />
                         )}

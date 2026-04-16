@@ -1,12 +1,11 @@
 const API_KEY = import.meta.env.VITE_POKEWALLET_API_KEY;
-const BASE_URL = '/api/pokewallet';
+const BASE_URL = 'https://api.pokewallet.io';
 
-if (!API_KEY) {
-  console.warn('⚠️ VITE_POKEWALLET_API_KEY no está configurada en .env.development');
-}
+console.log('PokéWallet base:', BASE_URL);
 
 async function apiRequest(endpoint) {
   const response = await fetch(`${BASE_URL}${endpoint}`, {
+    mode: 'cors',
     headers: {
       'X-API-Key': API_KEY || '',
     },
@@ -38,18 +37,45 @@ export default {
     return apiRequest('/sets');
   },
 
-  getImage: async (id, size = 'high') => {
-    const response = await fetch(`${BASE_URL}/images/${id}?size=${size}`, {
-      headers: {
-        'X-API-Key': API_KEY,
-      },
+  // Get image as blob URL (to avoid CORS issues in browser)
+  getImageUrl: async (id, size = 'high') => {
+    try {
+      const response = await fetch(`${BASE_URL}/images/${id}?size=${size}`, {
+        headers: {
+          'X-API-Key': API_KEY,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
+    } catch (error) {
+      console.error('Error fetching image:', error);
+      return null;
+    }
+  },
+
+  // Get multiple images in parallel (much faster)
+  getImageUrls: async (ids, size = 'low') => {
+    const promises = ids.map(async (id) => {
+      try {
+        const response = await fetch(`${BASE_URL}/images/${id}?size=${size}`, {
+          headers: { 'X-API-Key': API_KEY },
+        });
+        if (response.ok) {
+          const blob = await response.blob();
+          return { id, url: URL.createObjectURL(blob), ok: true };
+        }
+      } catch (e) {
+        console.error(`Error loading image ${id}:`, e);
+      }
+      return { id, url: null, ok: false };
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status}`);
-    }
-
-    return response.blob();
+    return Promise.all(promises);
   },
 };
 
