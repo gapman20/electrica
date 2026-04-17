@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useOrder } from '../context/OrderContext';
 import { useUser } from '../context/UserContext';
@@ -24,6 +24,7 @@ const PAYMENT_CONFIG = {
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { items, subtotal, shippingCost, total, clearCart } = useCart();
   const { createOrder, loading } = useOrder();
   const { user, isLoggedIn, login: userLogin, logout: userLogout, updateUser } = useUser();
@@ -33,7 +34,7 @@ const Checkout = () => {
   
   const [checkoutStep, setCheckoutStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('');
-  const [deliveryOption, setDeliveryOption] = useState('pickup');
+  const [deliveryOption, setDeliveryOption] = useState('delivery');
   const [useSavedCard, setUseSavedCard] = useState(false);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
@@ -55,19 +56,36 @@ const Checkout = () => {
   const [showPaymentInstructions, setShowPaymentInstructions] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
 
+  // Si viene de carrito con pickup, avanzar directamente a método de pago
+  // Si viene de pickup con login, saltar a método de pago
+  React.useEffect(() => {
+    const isPickup = searchParams.get('pickup') === 'true';
+    if (isPickup && isLoggedIn && checkoutStep === 1) {
+      setDeliveryOption('pickup');
+      setCheckoutStep(3);
+    } else if (!isPickup) {
+      // Delivery: setear opción por defecto
+      setDeliveryOption('delivery');
+    }
+  }, [searchParams, isLoggedIn, checkoutStep]);
+
+  // Cargar dirección si NO es pickup
   React.useEffect(() => {
     if (isLoggedIn && user && checkoutStep < 2) {
-      setCheckoutStep(2);
-      setFormData(prev => ({
-        ...prev,
-        name: user.name || user.email?.split('@')[0] || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        street: user.address || '',
-        city: user.city || '',
-        state: user.state || '',
-        zip: user.zipCode || '',
-      }));
+      const isPickup = searchParams.get('pickup') === 'true';
+      if (!isPickup) {
+        setCheckoutStep(2);
+        setFormData(prev => ({
+          ...prev,
+          name: user.name || user.email?.split('@')[0] || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          street: user.address || '',
+          city: user.city || '',
+          state: user.state || '',
+          zip: user.zipCode || '',
+        }));
+      }
     }
   }, [isLoggedIn, user, checkoutStep]);
 
@@ -535,15 +553,7 @@ const Checkout = () => {
                 Método de entrega
               </h3>
               <div className="delivery-options">
-                <label className={`delivery-option ${deliveryOption === 'pickup' ? 'selected' : ''}`} onClick={() => setDeliveryOption('pickup')}>
-                  <Store size={18} />
-                  <div className="delivery-option-content">
-                    <span className="delivery-option-title">Recoger en tienda</span>
-                    <span className="delivery-option-desc">Av. Insurgentes 123, Centro</span>
-                  </div>
-                  <span className="delivery-option-price">Gratis</span>
-                </label>
-                <label className={`delivery-option ${deliveryOption === 'delivery' ? 'selected' : ''}`} onClick={() => setDeliveryOption('delivery')}>
+                <label className={`delivery-option selected`}>
                   <Truck size={18} />
                   <div className="delivery-option-content">
                     <span className="delivery-option-title">Envío a domicilio</span>
