@@ -342,6 +342,29 @@ export default {
   games: gameApi,
   site: siteApi,
   images: imageApi,
+  campaigns: campaignApi,
+};
+
+// ─── Campaign API ────────────────────────────────────────────────────────────────
+export const campaignApi = {
+  getAll: async () => {
+    return await apiRequest('/campaigns');
+  },
+  getActive: async () => {
+    return await apiRequest('/campaigns/active');
+  },
+  getById: async (id) => {
+    return await apiRequest(`/campaigns/${id}`);
+  },
+  create: async (campaign) => {
+    return await apiRequest('/campaigns', { method: 'POST', body: JSON.stringify(campaign) });
+  },
+  update: async (id, updates) => {
+    return await apiRequest(`/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+  },
+  delete: async (id) => {
+    return await apiRequest(`/campaigns/${id}`, { method: 'DELETE' });
+  },
 };
 
 // ─── Contact API ──────────────────────────────────────────────────────────────

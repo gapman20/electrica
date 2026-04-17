@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { OrderProvider } from './OrderContext';
-import { authApi, contactApi, cmsApi } from '../services/api';
+import { authApi, contactApi, cmsApi, campaignApi } from '../services/api';
 
 const AUTH_KEY = 'is_authenticated';
 const ADMIN_PASS_KEY = 'admin_password';
@@ -58,102 +58,54 @@ const defaultContent = {
       { id: '1', title: 'Cartas Sueltas',  desc: 'Amplio catálogo de cartas individuales de Pokémon, Yu-Gi-Oh!, Magic, Digimon y más.', active: true },
       { id: '2', title: 'Productos Sellados', desc: 'Booster Boxes, ETBs, Decks, Bundles y más. Siempre en preventa.', active: true },
       { id: '3', title: 'Preventas',    desc: 'Sé el primero en conseguir los nuevos sets. Preventas disponibles para todos los juegos.', active: true },
-      { id: '4', title: 'Asesoría',       desc: 'Te ayudamos a encontrar las cartas que necesitas para tu colección o deck.', active: true },
-    ],
+    ]
   },
 
   contact: {
     title:    'Contáctanos',
-    subtitle: '¿Tienes preguntas? Estamos aquí para ayudarte.',
-    whatsapp: '+52 (123) 456-7890',
-    email:    'hola@adventuretcg.com',
-    address:  'Tu ciudad, México.',
-    mapLat:   19.4326,
-    mapLng:   -99.1332,
+    subtitle: '¿Tienes alguna pregunta? ¿Necesitas ayuda para encontrar una carta específica?',
+    email:    'contacto@adventure.com',
+    phone:    '+52 123 456 7890',
+    address:  'Ciudad de México, México',
+    hours:    'Lun-Sáb: 10am - 8pm',
   },
 
   footer: {
-    description: 'Tu destino para cartas coleccionables. Pokémon, Yu-Gi-Oh!, Magic y más.',
-    copyright:   'Adventure TCG. Todos los derechos reservados.',
+    copyright: '© 2024 Adventure. Todos los derechos reservados.',
+    disclaimer: 'Pokémon © 1995-2024 Nintendo/Creatures Inc./GAME FREAK inc. Magic: The Gathering © Wizards of the Coast. Yu-Gi-Oh! © Konami.',
   },
-};
-
-const defaultBlogPosts = [
-  {
-    id: 'post-1',
-    title:     'Tendencias de Diseño Web para 2024',
-    excerpt:   'Descubre los estilos visuales y arquitecturas tecnológicas que dominarán la industria digital este año.',
-    content:   'A medida que entramos en un nuevo año, el panorama del diseño web continúa evolucionando rápidamente. Las interfaces oscuras (Dark Mode), el minimalismo funcional y las micro-interacciones suaves ya no son opcionales, sino expectativas estándar de los usuarios premium.\n\nEn este artículo exploraremos cómo la Tipografía Fluida y los Diseños Glassmórficos están dominando el espacio tecnológico, proporcionando experiencias de usuario (UX) inmersivas que retienen por más tiempo a los clientes potenciales.\n\nEl glassmorfismo avanzado utiliza fondos semi-transparentes con desenfoque de fondo, creando una jerarquía visual impresionante especialmente cuando se superpone en fondos fotográficos profundos.',
-    author:    'Admin',
-    date:      'Oct 12, 2023',
-    image:     null,
-    tags:      'diseño web, tendencias, UI/UX',
-    published: true,
-  },
-  {
-    id: 'post-2',
-    title:     'Cómo optimizar tu SEO Local',
-    excerpt:   'Estrategias probadas para hacer que tu negocio aparezca primero en las búsquedas de Google Maps de tu ciudad.',
-    content:   'El SEO local es fundamental para cualquier negocio que atienda a clientes en una zona geográfica específica. Aparecer en los primeros resultados de Google Maps puede marcar la diferencia entre tener o no tener clientes.\n\nEn esta guía aprenderás a optimizar tu perfil de Google Business, cómo conseguir reseñas auténticas de clientes, y las palabras clave locales que debes incluir en tu sitio web para dominar tu mercado local.',
-    author:    'Equipo Marketing',
-    date:      'Oct 05, 2023',
-    image:     null,
-    tags:      'SEO, marketing local, Google',
-    published: true,
-  },
-  {
-    id: 'post-3',
-    title:     'La importancia de un panel autogestionable',
-    excerpt:   'Por qué depender de un programador para cada cambio de texto es algo del pasado y cómo un CMS ahorra costos.',
-    content:   'En el mundo empresarial moderno, la agilidad es clave. Tener que esperar días o semanas para que un programador actualice el texto de tu landing page es una desventaja competitiva seria.\n\nLos paneles de administración modernos permiten a cualquier persona del equipo actualizar contenido, imágenes, precios y más, sin tocar una sola línea de código. Esto reduce costos, aumenta la velocidad de respuesta al mercado y empodera a tu equipo.',
-    author:    'Admin',
-    date:      'Sep 28, 2023',
-    image:     null,
-    tags:      'CMS, administración, negocios',
-    published: true,
-  },
-];
-
-const defaultPages = [
-  { id: 'home', name: 'Inicio', path: '/', active: true, isCustom: false },
-  { id: 'sellados', name: 'Productos', path: '/productos', active: true, isCustom: false },
-  { id: 'cards', name: 'Cartas Sueltas', path: '/catalogo', active: true, isCustom: false },
-  { id: 'orders', name: 'Mis Pedidos', path: '/mis-pedidos', active: true, isCustom: false },
-  { id: 'contact', name: 'Contacto', path: '/contacto', active: true, isCustom: false },
-];
-
-const defaultProducts = [
-  { id: 'prod-1', name: 'Foco LED 12W', description: 'Foco LED luz fría, alto rendimiento y bajo consumo. Ideal para interiores y exteriores techados.', price: '$45.00', image: null, active: true },
-  { id: 'prod-2', name: 'Cable Calibre 12 THW', description: 'Rollo de cable de cobre de 100m. Resistente al calor y humedad. Colores disponibles: rojo, negro, verde y blanco.', price: '$1,250.00', image: null, active: true },
-  { id: 'prod-3', name: 'Centro de Carga 2 Polos', description: 'Centro de carga QO para montaje de sobreponer, incluye zapatas principales.', price: '$220.00', image: null, active: true },
-  { id: 'prod-4', name: 'Contacto Duplex con Placa', description: 'Contacto polarizado en color blanco, diseño moderno y fácil instalación.', price: '$35.00', image: null, active: true },
-];
-
-const defaultTheme = {
-  accentPrimary:   '#f59e0b',
-  accentSecondary: '#d97706',
-  accentGold:      '#f59e0b',
-  bgPrimary:       '#050505',
-  bgSecondary:     '#0a0a0d',
-  bgTertiary:      '#111116',
-  textPrimary:     '#ffffff',
-  textSecondary:   '#a1a1aa',
-  navbarColor:     '#0a0a0d',
-  cardBg:          '#0f0f14',
-  textNavbarPrimary:   '#ffffff',
-  textNavbarSecondary: '#a1a1aa',
-  textCardPrimary:     '#ffffff',
-  textCardSecondary:   '#a1a1aa',
-  newsletterBg:    'linear-gradient(135deg, #f59e0b, #d97706)',
 };
 
 const defaultImages = {
-  logo:      null,
-  heroBg:    null,
-  aboutHero: null,
-  portfolio: [null, null, null, null, null, null],
+  logo:          null,
+  heroBg:        null,
+  aboutHero:     null,
+  aboutImage1:   null,
+  aboutImage2:   null,
+  aboutImage3:   null,
+  contactHero:   null,
+  blogHero:      null,
+  fallbackImages: [],
 };
 
+const defaultTheme = {
+  accentPrimary:   '#f59e0b', // Gold/amber
+  accentSecondary:  '#d97706', // Darker gold
+  bgPrimary:       '#0f172a', // Dark blue/black
+  bgSecondary:     '#1e293b', // Slate
+  bgGlass:         'rgba(30, 41, 59, 0.7)',
+  textPrimary:     '#f8fafc',
+  textSecondary:   '#94a3b8',
+  success:         '#10b981',
+  error:           '#ef4444',
+};
+
+const defaultBlogPosts = [];
+const defaultPages = [];
+const defaultProducts = [];
+const defaultAnalytics = { visits: 0, orders: 0 };
+
+// Keys for localStorage
 const CONTENT_KEY = 'site_content_v1';
 const IMAGES_KEY  = 'site_images_v1';
 const THEME_KEY   = 'site_theme_v1';
@@ -207,34 +159,29 @@ function applyTheme(theme) {
   root.style.setProperty('--accent-secondary',  theme.accentSecondary);
   root.style.setProperty('--accent-gold',       theme.accentPrimary);
   root.style.setProperty('--accent-gradient',   `linear-gradient(135deg, ${theme.accentPrimary}, ${theme.accentSecondary})`);
-  root.style.setProperty('--accent-glow',       `${theme.accentPrimary}66`);
-  root.style.setProperty('--bg-primary',        theme.bgPrimary);
-  root.style.setProperty('--bg-secondary',      theme.bgSecondary);
-  root.style.setProperty('--bg-tertiary',       theme.bgTertiary);
-  root.style.setProperty('--text-primary',      theme.textPrimary);
-  root.style.setProperty('--text-secondary',    theme.textSecondary);
 
-  root.style.setProperty('--text-navbar-primary',   theme.textNavbarPrimary || theme.textPrimary);
-  root.style.setProperty('--text-navbar-secondary', theme.textNavbarSecondary || theme.textSecondary);
-  root.style.setProperty('--text-card-primary',     theme.textCardPrimary || theme.textPrimary);
-  root.style.setProperty('--text-card-secondary',   theme.textCardSecondary || theme.textSecondary);
-  root.style.setProperty('--newsletter-bg',         theme.newsletterBg || 'linear-gradient(135deg, #f59e0b, #d97706)');
+  root.style.setProperty('--bg-primary',   theme.bgPrimary);
+  root.style.setProperty('--bg-secondary', theme.bgSecondary);
+  root.style.setProperty('--bg-glass',     theme.bgGlass);
+  root.style.setProperty('--glass-bg',     theme.bgGlass);
+  root.style.setProperty('--glass-border', 'rgba(255,255,255,0.1)');
 
-  const navColor = theme.navbarColor || theme.bgSecondary;
-  root.style.setProperty('--nav-bg',      navColor + 'e6');
-  root.style.setProperty('--nav-menu-bg', navColor + 'fa');
+  root.style.setProperty('--text-primary', theme.textPrimary);
+  root.style.setProperty('--text-secondary', theme.textSecondary);
 
-  const card = theme.cardBg || theme.bgSecondary;
-  root.style.setProperty('--glass-bg', card);
+  root.style.setProperty('--color-success', theme.success);
+  root.style.setProperty('--color-error',   theme.error);
 
-  const isLight = theme.bgPrimary > '#888888';
-  root.style.setProperty('--glass-border',
-    isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.09)');
+  // Legacy support
+  root.style.setProperty('--bg-dark', theme.bgPrimary);
 }
 
-const SiteContext = createContext(null);
+export const SiteContext = createContext();
+
+export const useSite = () => useContext(SiteContext);
 
 export const SiteProvider = ({ children }) => {
+  // Content state (site text/values)
   const [content, setContent] = useState(() => {
     try {
       const saved = localStorage.getItem(CONTENT_KEY);
@@ -243,6 +190,7 @@ export const SiteProvider = ({ children }) => {
     return defaultContent;
   });
 
+  // Images state (base64)
   const [images, setImages] = useState(() => {
     try {
       const saved = localStorage.getItem(IMAGES_KEY);
@@ -251,6 +199,7 @@ export const SiteProvider = ({ children }) => {
     return defaultImages;
   });
 
+  // Theme state
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem(THEME_KEY);
@@ -259,41 +208,43 @@ export const SiteProvider = ({ children }) => {
     return defaultTheme;
   });
 
+  // Blog posts state
   const [blogPosts, setBlogPosts] = useState(() => {
     try {
       const saved = localStorage.getItem(BLOG_KEY);
       if (saved) return JSON.parse(saved);
     } catch { }
-    return defaultBlogPosts;
+    return [];
   });
 
+  // Pages state
   const [pages, setPages] = useState(() => {
     try {
       const saved = localStorage.getItem(PAGES_KEY);
       if (saved) return JSON.parse(saved);
     } catch { }
-    return defaultPages;
+    return [];
   });
 
+  // Products state (for quick stats)
   const [products, setProducts] = useState(() => {
     try {
       const saved = localStorage.getItem(PRODS_KEY);
       if (saved) return JSON.parse(saved);
     } catch { }
-    return defaultProducts;
+    return [];
   });
 
+  // Analytics state
   const [analytics, setAnalytics] = useState(() => {
     try {
       const saved = localStorage.getItem(ANALYTICS_KEY);
       if (saved) return JSON.parse(saved);
     } catch { }
-    return {
-      whatsapp_clicks: 0,
-      visits_simulated: [120, 150, 200, 180, 250, 310, 290]
-    };
+    return defaultAnalytics;
   });
 
+  // Inbox state
   const [inbox, setInbox] = useState(() => {
     try {
       const saved = localStorage.getItem(INBOX_KEY);
@@ -302,6 +253,7 @@ export const SiteProvider = ({ children }) => {
     return [];
   });
 
+  // Campaigns state - Load from API first, fallback to localStorage
   const [campaigns, setCampaigns] = useState(() => {
     try {
       const saved = localStorage.getItem(CAMPAIGNS_KEY);
@@ -337,6 +289,22 @@ export const SiteProvider = ({ children }) => {
     if (isAdmin) {
       loadMessages();
     }
+  }, []);
+
+  // Load campaigns from API on mount
+  useEffect(() => {
+    const loadCampaigns = async () => {
+      try {
+        const apiCampaigns = await campaignApi.getAll();
+        if (apiCampaigns && apiCampaigns.length > 0) {
+          setCampaigns(apiCampaigns);
+          localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(apiCampaigns));
+        }
+      } catch (err) {
+        console.warn('[SiteContext] Could not load campaigns from API, using localStorage');
+      }
+    };
+    loadCampaigns();
   }, []);
 
   // Load content from CMS API on mount (if enabled)
@@ -379,54 +347,63 @@ export const SiteProvider = ({ children }) => {
           console.log('[SiteContext] Loaded theme from CMS');
           setTheme(prev => ({ ...prev, ...themeData.value.theme }));
         }
-      } catch (error) {
-        console.warn('[SiteContext] Failed to load from CMS API, using localStorage:', error);
-        // Silently fall back to localStorage (already loaded)
+
+        console.log('[SiteContext] ✅ All CMS data loaded successfully');
+      } catch (err) {
+        console.warn('[SiteContext] Failed to load from CMS API, using localStorage:', err);
       }
     };
 
     loadFromCMS();
   }, []);
 
+  // ─── Content helpers ─────────────────────────────────────────────────────────
   const updateContent = (path, value) => {
     setContent(prev => {
-      const next = deepMerge({}, prev);
+      const updated = { ...prev };
       const keys = path.split('.');
-      let obj = next;
-      for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
-      obj[keys[keys.length - 1]] = value;
-      return next;
+      let current = updated;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) current[keys[i]] = {};
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = value;
+      return updated;
     });
   };
 
-  const updateServiceCard = (index, field, value) => {
+  const updateServiceCard = (id, field, value) => {
     setContent(prev => {
-      const next = deepMerge({}, prev);
-      next.services.cards[index][field] = value;
-      return next;
+      const services = [...(prev.services?.cards || [])];
+      const index = services.findIndex(c => c.id === id);
+      if (index !== -1) {
+        services[index] = { ...services[index], [field]: value };
+      }
+      return { ...prev, services: { ...prev.services, cards: services } };
     });
   };
 
-  const moveServiceCard = (index, direction) => {
+  const moveServiceCard = (id, direction) => {
     setContent(prev => {
-      const next = deepMerge({}, prev);
-      next.services.cards = moveArrayItem(next.services.cards, index, direction);
-      return next;
+      const services = [...(prev.services?.cards || [])];
+      const index = services.findIndex(c => c.id === id);
+      if (index === -1) return prev;
+      return { ...prev, services: { ...prev.services, cards: moveArrayItem(services, index, direction) } };
     });
   };
 
+  // ─── Blog helpers ────────────────────────────────────────────────────────────
   const createBlogPost = () => {
     const newPost = {
-      id:        `post-new-${Date.now()}`,
-      title:     'Nuevo Artículo',
-      excerpt:   'Escribe aquí un resumen del artículo...',
-      content:   'Escribe el contenido completo del artículo aquí...',
-      author:    'Admin',
-      date:      new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }),
-      image:     null,
-      tags:      '',
+      id: `post-${Date.now()}`,
+      title: 'Nueva Entrada',
+      excerpt: 'Resumen de la entrada...',
+      content: 'Escribe tu contenido aquí...',
+      author: content.siteName || 'Admin',
+      image: null,
+      tags: '',
       published: false,
-      isNew:     true,
+      createdAt: new Date().toISOString()
     };
     setBlogPosts(prev => [newPost, ...prev]);
     return newPost.id;
@@ -441,34 +418,33 @@ export const SiteProvider = ({ children }) => {
   };
 
   const duplicateBlogPost = (id) => {
-    setBlogPosts(prev => {
-      const original = prev.find(p => p.id === id);
-      if (!original) return prev;
-      const copy = { 
-        ...original, 
-        id: `post-new-${Date.now()}`, 
-        title: `${original.title} (copia)`, 
-        published: false,
-        isNew: true,
-      };
-      return [copy, ...prev];
-    });
+    const post = blogPosts.find(p => p.id === id);
+    if (!post) return;
+    const newPost = {
+      ...post,
+      id: `post-${Date.now()}`,
+      title: `${post.title} (copia)`,
+      published: false,
+      createdAt: new Date().toISOString()
+    };
+    setBlogPosts(prev => [newPost, ...prev]);
   };
 
+  // ─── Pages helpers ───────────────────────────────────────────────────────────
   const createPage = () => {
     const newPage = {
-      id:          `page-new-${Date.now()}`,
-      name:        'Nueva Página',
-      path:        `/nueva-pagina-${Date.now().toString().slice(-4)}`,
-      active:      false,
-      isCustom:    true,
-      pageTitle:   'Título de tu nueva página',
-      pageSubtitle:'Describe brevemente de qué trata esta página.',
-      pageText:    'Escribe aquí todo lo que quieras contar. Puedes presionar "Enter" para crear nuevos párrafos.',
-      pageImage:   null,
-      isNew:       true,
+      id: `page-${Date.now()}`,
+      name: 'Nueva Página',
+      path: `/page-${Date.now()}`,
+      pageTitle: 'Nueva Página',
+      pageSubtitle: '',
+      pageText: '',
+      pageImage: null,
+      active: false,
+      isCustom: true,
+      createdAt: new Date().toISOString()
     };
-    setPages(prev => [...prev, newPage]);
+    setPages(prev => [newPage, ...prev]);
     return newPage.id;
   };
 
@@ -480,18 +456,24 @@ export const SiteProvider = ({ children }) => {
     setPages(prev => prev.filter(p => p.id !== id));
   };
 
-  const movePage = (index, direction) => {
-    setPages(prev => moveArrayItem(prev, index, direction));
+  const movePage = (id, direction) => {
+    setPages(prev => {
+      const index = prev.findIndex(p => p.id === id);
+      if (index === -1) return prev;
+      return moveArrayItem(prev, index, direction);
+    });
   };
 
+  // ─── Products helpers ────────────────────────────────────────────────────────
   const createProduct = () => {
     const newProduct = {
-      id:          `prod-${Date.now()}`,
-      name:        'Nuevo Producto',
-      description: 'Descripción breve del producto.',
-      price:       '$0.00',
-      image:       null,
-      active:      true
+      id: `prod-${Date.now()}`,
+      name: 'Nuevo Producto',
+      price: 0,
+      description: '',
+      imageUrl: '',
+      active: true,
+      createdAt: new Date().toISOString()
     };
     setProducts(prev => [newProduct, ...prev]);
     return newProduct.id;
@@ -505,100 +487,46 @@ export const SiteProvider = ({ children }) => {
     setProducts(prev => prev.filter(p => p.id !== id));
   };
 
-  const moveProduct = (index, direction) => {
-    setProducts(prev => moveArrayItem(prev, index, direction));
-  };
-
-  const trackAnalytics = (event) => {
-    setAnalytics(prev => {
-      const next = { ...prev };
-      if (event === 'whatsapp') next.whatsapp_clicks = (next.whatsapp_clicks || 0) + 1;
-      localStorage.setItem(ANALYTICS_KEY, JSON.stringify(next));
-      return next;
+  const moveProduct = (id, direction) => {
+    setProducts(prev => {
+      const index = prev.findIndex(p => p.id === id);
+      if (index === -1) return prev;
+      return moveArrayItem(prev, index, direction);
     });
   };
 
-  const login = async (email, pass) => {
-    if (import.meta.env.VITE_USE_API === 'true') {
-      const result = await authApi.adminLogin(email, pass);
-      if (result.success) {
-        localStorage.setItem(AUTH_KEY, 'true');
-        setIsAuthenticated(true);
-        setUser({ email, isAdmin: true });
-        return true;
-      }
-      return false;
-    } else {
-      const storedPass = localStorage.getItem(ADMIN_PASS_KEY) || 'admin123';
-      if (pass === storedPass) {
-        localStorage.setItem(AUTH_KEY, 'true');
-        localStorage.setItem('auth_token', 'local-admin-token');
-        setIsAuthenticated(true);
-        setUser({ email, isAdmin: true });
-        return true;
-      }
-      return false;
-    }
+  // ─── Analytics helpers ───────────────────────────────────────────────────────
+  const trackAnalytics = (event, data = {}) => {
+    setAnalytics(prev => ({
+      ...prev,
+      visits: prev.visits + 1,
+      lastVisit: new Date().toISOString(),
+      ...data
+    }));
   };
 
-  const logout = async () => {
-    localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('tcg_user');
-    setIsAuthenticated(false);
-    setUser(null);
+  // ─── Inbox helpers ───────────────────────────────────────────────────────────
+  const addMessage = (msg) => setInbox(prev => [msg, ...prev]);
+
+  const markMessageRead = (id) => {
+    setInbox(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
   };
 
-  const changePassword = async (oldPass, newPass) => {
-    const storedPass = localStorage.getItem(ADMIN_PASS_KEY) || 'admin123';
-    if (oldPass === storedPass) {
-      localStorage.setItem(ADMIN_PASS_KEY, newPass);
-      return true;
-    }
-    return false;
-  };
-
-  const addMessage = async (msg) => {
-    try {
-      const newMsg = await contactApi.send(msg);
-      setInbox(prev => [{ ...newMsg, createdAt: newMsg.createdAt }, ...prev]);
-      return true;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      return false;
-    }
-  };
-
-  const markMessageRead = async (id) => {
-    try {
-      await contactApi.markRead(id);
-      setInbox(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
-    } catch (error) {
-      console.error('Error marking message as read:', error);
-    }
-  };
-
-  const deleteMessage = async (id) => {
-    try {
-      await contactApi.delete(id);
-      setInbox(prev => prev.filter(m => m.id !== id));
-    } catch (error) {
-      console.error('Error deleting message:', error);
-    }
+  const deleteMessage = (id) => {
+    setInbox(prev => prev.filter(m => m.id !== id));
   };
 
   const loadMessages = async () => {
     try {
-      const messages = await contactApi.getAll();
-      setInbox(messages);
-      localStorage.setItem(INBOX_KEY, JSON.stringify(messages));
-    } catch (error) {
-      console.error('Error loading messages:', error);
-      const saved = localStorage.getItem(INBOX_KEY);
-      if (saved) setInbox(JSON.parse(saved));
+      const data = await contactApi.getAll();
+      const msgs = Array.isArray(data) ? data : (data.messages || []);
+      setInbox(msgs);
+    } catch (err) {
+      console.error('Error loading messages:', err);
     }
   };
 
+  // ─── Campaign helpers ───────────────────────────────────────────────────────
   const getActiveCampaign = () => {
     const now = new Date();
     return campaigns.find(c => {
@@ -622,40 +550,70 @@ export const SiteProvider = ({ children }) => {
     return Math.round((price - discount) * 100) / 100;
   };
 
-  const createCampaign = () => {
+  const createCampaign = async () => {
     const newCampaign = {
       id: `camp-${Date.now()}`,
       name: 'Nueva Campaña',
       discountPercent: 10,
       startDate: new Date().toISOString(),
       endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      active: false, // IMPORTANTE: false por defecto para que no se muestre hasta que el admin la active
+      active: false,
       bannerText: '¡Oferta Especial!',
       bannerColor: '#f59e0b',
       selectedProducts: [],
     };
-    setCampaigns(prev => {
-      const updated = [newCampaign, ...prev];
-      localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(updated));
-      return updated;
-    });
-    return newCampaign.id;
+
+    // Save to API first
+    try {
+      const created = await campaignApi.create(newCampaign);
+      setCampaigns(prev => {
+        const updated = [created, ...prev];
+        localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(updated));
+        return updated;
+      });
+      return created.id;
+    } catch (err) {
+      // Fallback to localStorage if API fails
+      console.warn('[SiteContext] Failed to create campaign in API, saving locally');
+      setCampaigns(prev => {
+        const updated = [newCampaign, ...prev];
+        localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(updated));
+        return updated;
+      });
+      return newCampaign.id;
+    }
   };
 
-  const updateCampaign = (id, field, value) => {
+  const updateCampaign = async (id, field, value) => {
+    // Update locally first (optimistic update)
     setCampaigns(prev => {
       const updated = prev.map(c => c.id === id ? { ...c, [field]: value } : c);
       localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(updated));
       return updated;
     });
+
+    // Then sync to API
+    try {
+      await campaignApi.update(id, { [field]: value });
+    } catch (err) {
+      console.warn('[SiteContext] Failed to sync campaign update to API:', err);
+    }
   };
 
-  const deleteCampaign = (id) => {
+  const deleteCampaign = async (id) => {
+    // Remove locally first
     setCampaigns(prev => {
       const updated = prev.filter(c => c.id !== id);
       localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(updated));
       return updated;
     });
+
+    // Then delete from API
+    try {
+      await campaignApi.delete(id);
+    } catch (err) {
+      console.warn('[SiteContext] Failed to delete campaign from API:', err);
+    }
   };
 
   const updateTheme = (key, value) => setTheme(prev => ({ ...prev, [key]: value }));
@@ -697,9 +655,8 @@ export const SiteProvider = ({ children }) => {
 
           // Sync blog posts
           for (const post of blogPosts) {
-            if (post.isNew || post.id.startsWith('post-new-')) {
-              const { isNew, ...postData } = post;
-              await cmsApi.blog.create(postData);
+            if (post.id?.startsWith('post-')) {
+              await cmsApi.blog.create(post);
             } else {
               await cmsApi.blog.update(post.id, post);
             }
@@ -707,9 +664,8 @@ export const SiteProvider = ({ children }) => {
 
           // Sync pages
           for (const page of pages) {
-            if (page.isNew || page.id.startsWith('page-new-')) {
-              const { isNew, ...pageData } = page;
-              await cmsApi.pages.create(pageData);
+            if (page.id?.startsWith('page-')) {
+              await cmsApi.pages.create(page);
             } else {
               await cmsApi.pages.update(page.id, page);
             }
@@ -718,7 +674,6 @@ export const SiteProvider = ({ children }) => {
           console.log('[SiteContext] Content saved to CMS API successfully');
         } catch (apiError) {
           console.warn('[SiteContext] CMS API save failed, but localStorage was updated:', apiError);
-          // Don't fail the whole save if API fails - localStorage is our backup
         }
       }
 
@@ -744,6 +699,33 @@ export const SiteProvider = ({ children }) => {
     setTimeout(() => setSaveStatus(null), 3000);
   };
 
+  // Auth helpers
+  const login = async (email, password) => {
+    try {
+      const data = await authApi.login(email, password);
+      localStorage.setItem(AUTH_KEY, 'true');
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('tcg_user', JSON.stringify(data.user));
+      setIsAuthenticated(true);
+      setUser(data.user);
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('token');
+    localStorage.removeItem('tcg_user');
+    setIsAuthenticated(false);
+    setUser(null);
+  };
+
+  const changePassword = async (currentPassword, newPassword) => {
+    return await authApi.changePassword(currentPassword, newPassword);
+  };
+
   return (
     <SiteContext.Provider value={{
       content, updateContent, updateServiceCard, moveServiceCard,
@@ -766,11 +748,3 @@ export const SiteProvider = ({ children }) => {
     </SiteContext.Provider>
   );
 };
-
-export const useSite = () => {
-  const ctx = useContext(SiteContext);
-  if (!ctx) throw new Error('useSite must be used inside SiteProvider');
-  return ctx;
-};
-
-export { defaultContent, defaultTheme };

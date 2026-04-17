@@ -2090,30 +2090,12 @@ const Admin = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(350px, 450px) 1fr', gap: '2rem', alignItems: 'start' }}>
               {/* Campaigns List */}
               <div>
-                <button onClick={() => {
-                  // Create the campaign object directly to avoid timing issues
-                  const newCampaign = {
-                    id: `camp-${Date.now()}`,
-                    name: 'Nueva Campaña',
-                    discountPercent: 10,
-                    startDate: new Date().toISOString(),
-                    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                    active: false,
-                    bannerText: '¡Oferta Especial!',
-                    bannerColor: '#f59e0b',
-                    selectedProducts: [],
-                  };
-                  
-                  // Add to campaigns state and persist to localStorage
-                  setCampaigns(prev => {
-                    const updated = [newCampaign, ...prev];
-                    localStorage.setItem('site_campaigns_v1', JSON.stringify(updated));
-                    return updated;
-                  });
-                  setEditingCampaign(newCampaign.id);
-                  setCampaignDraft(JSON.parse(JSON.stringify(newCampaign)));
-                  setOriginalCampaignValues(JSON.parse(JSON.stringify(newCampaign)));
-                  setCampaignHasChanges(true); // Mark as has changes since it's a new campaign
+                <button onClick={async () => {
+                  const newId = createCampaign();
+                  // Wait a tick for state to update, then select the new campaign
+                  setTimeout(() => {
+                    handleSelectCampaign(newId);
+                  }, 50);
                 }} style={{ width: '100%', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'var(--accent-gold)', border: 'none', borderRadius: '10px', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', fontFamily: 'var(--font-heading)' }}>
                   <Plus size={18} /> Nueva Campaña
                 </button>
