@@ -1,9 +1,31 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { CartProvider, useCart } from '../context/CartContext.jsx';
+import { UserProvider } from './UserContext.jsx';
 
-const TestWrapper = ({ children, user = false }) => (
-  <CartProvider user={user}>{children}</CartProvider>
+// Mock the API services
+vi.mock('../services/api', () => ({
+  cartApi: {
+    get: vi.fn(() => Promise.resolve([])),
+    add: vi.fn((item) => Promise.resolve({ id: 'new-id', ...item })),
+    update: vi.fn(() => Promise.resolve({})),
+    remove: vi.fn(() => Promise.resolve(true)),
+    clear: vi.fn(() => Promise.resolve(true)),
+  },
+  authApi: {
+    login: vi.fn(),
+    logout: vi.fn(),
+  },
+  default: {
+    cart: {},
+    auth: {}
+  }
+}));
+
+const TestWrapper = ({ children }) => (
+  <UserProvider>
+    <CartProvider>{children}</CartProvider>
+  </UserProvider>
 );
 
 const TestConsumer = () => {
@@ -115,7 +137,7 @@ describe('CartContext', () => {
       screen.getByTestId('add').click();
     });
     await waitFor(() => {
-      const stored = localStorage.getItem('tcg_cart');
+      const stored = localStorage.getItem('guest_cart_v1');
       expect(stored).toBeTruthy();
     });
   });

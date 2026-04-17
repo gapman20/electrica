@@ -148,49 +148,60 @@ export const CartProvider = ({ children }) => {
           rarity: item.rarity,
         });
 
-        const exists = prev.some(i =>
+        const existingItemIndex = prev.findIndex(i =>
           (newItem.cardId && i.cardId === newItem.cardId) ||
           (newItem.productId && i.productId === newItem.productId)
         );
 
-        const updated = exists ? prev : [...prev, newItem];
+        let updated;
+        if (existingItemIndex > -1) {
+          updated = [...prev];
+          const existingItem = updated[existingItemIndex];
+          const newQuantity = Math.min(existingItem.quantity + 1, existingItem.stock || 999);
+          updated[existingItemIndex] = { ...existingItem, quantity: newQuantity };
+        } else {
+          updated = [...prev, newItem];
+        }
+
         saveGuestCart(updated);
         return updated;
       });
     }
   }, [user, saveGuestCart, loadGuestCart]);
 
-  const removeItem = useCallback(async (cartId) => {
+  const removeItem = useCallback(async (itemId) => {
     if (user) {
       // Authenticated user - use backend API
       try {
-        await cartApi.remove(cartId);
-        setItems(prev => prev.filter(item => item.cartId !== cartId));
+        await cartApi.remove(itemId);
+        setItems(prev => prev.filter(item => item.cartId !== itemId));
       } catch (error) {
         console.error('Error removing from cart:', error);
       }
     } else {
       // Guest user - use localStorage
       setItems(prev => {
-        const updated = prev.filter(item => item.cartId !== cartId);
+        const updated = prev.filter(item =>
+          item.cartId !== itemId && item.cardId !== itemId && item.productId !== itemId
+        );
         saveGuestCart(updated);
         return updated;
       });
     }
   }, [user, saveGuestCart]);
 
-  const updateQuantity = useCallback(async (cartId, quantity) => {
+  const updateQuantity = useCallback(async (itemId, quantity) => {
     if (quantity < 1) {
-      removeItem(cartId);
+      removeItem(itemId);
       return;
     }
 
     if (user) {
       // Authenticated user - use backend API
       try {
-        await cartApi.update(cartId, quantity);
+        await cartApi.update(itemId, quantity);
         setItems(prev => prev.map(item =>
-          item.cartId === cartId ? { ...item, quantity } : item
+          item.cartId === itemId ? { ...item, quantity } : item
         ));
       } catch (error) {
         console.error('Error updating quantity:', error);
@@ -199,7 +210,9 @@ export const CartProvider = ({ children }) => {
       // Guest user - use localStorage
       setItems(prev => {
         const updated = prev.map(item =>
-          item.cartId === cartId ? { ...item, quantity } : item
+          (item.cartId === itemId || item.cardId === itemId || item.productId === itemId)
+            ? { ...item, quantity }
+            : item
         );
         saveGuestCart(updated);
         return updated;
