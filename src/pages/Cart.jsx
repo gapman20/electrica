@@ -158,7 +158,10 @@ const Cart = () => {
             <span>Total</span>
             <span className="summary-total-value">{formatPrice(total)}</span>
           </div>
-          <Link to="/checkout" className="btn-primary checkout-btn">
+          <Link 
+            to={deliveryOption === 'pickup' ? '/checkout?pickup=true' : '/checkout'} 
+            className="btn-primary checkout-btn"
+          >
             Proceder al Pago
             <ArrowRight size={18} />
           </Link>
