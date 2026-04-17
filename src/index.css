@@ -2675,11 +2675,46 @@ body.light-theme .theme-toggle:hover {
   .cart-page-layout,
   .checkout-layout {
     grid-template-columns: 1fr;
+    padding-bottom: 8rem;
   }
 
+  /* En móvil: sidebar fixed con solo el botón */
   .cart-summary-desktop,
   .checkout-summary-desktop {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    background: var(--bg-secondary) !important;
+    border-top: 1px solid var(--glass-border);
+    padding: 1rem;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    z-index: 1001 !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  /* En móvil solo mostrar botón */
+  .cart-summary-desktop h3,
+  .cart-summary-desktop .summary-row,
+  .cart-summary-desktop .summary-total,
+  .cart-summary-desktop .continue-shopping-link,
+  .checkout-summary-desktop .checkout-items,
+  .checkout-summary-desktop .checkout-totals,
+  .checkout-summary-desktop h3 {
     display: none;
+  }
+
+  /* En móvil mostrar opciones de delivery */
+  .cart-summary-desktop .delivery-options {
+    display: flex;
+    margin-bottom: 0.5rem;
+  }
+
+  .cart-summary-desktop .checkout-btn,
+  .checkout-summary-desktop .checkout-payment-section {
+    display: block;
+    margin: 0;
   }
 
   .cart-item-card {
