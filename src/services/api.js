@@ -332,19 +332,6 @@ export const imageApi = {
   },
 };
 
-export default {
-  cards: cardApi,
-  products: productApi,
-  cart: cartApi,
-  orders: orderApi,
-  auth: authApi,
-  wishlist: wishlistApi,
-  games: gameApi,
-  site: siteApi,
-  images: imageApi,
-  campaigns: campaignApi,
-};
-
 // ─── Campaign API ────────────────────────────────────────────────────────────────
 export const campaignApi = {
   getAll: async () => {
@@ -365,6 +352,19 @@ export const campaignApi = {
   delete: async (id) => {
     return await apiRequest(`/campaigns/${id}`, { method: 'DELETE' });
   },
+};
+
+export default {
+  cards: cardApi,
+  products: productApi,
+  cart: cartApi,
+  orders: orderApi,
+  auth: authApi,
+  wishlist: wishlistApi,
+  games: gameApi,
+  site: siteApi,
+  images: imageApi,
+  campaigns: campaignApi,
 };
 
 // ─── Contact API ──────────────────────────────────────────────────────────────
