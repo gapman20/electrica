@@ -332,6 +332,35 @@ export const imageApi = {
   },
 };
 
+// ─── Campaign API (Ofertas) ───────────────────────────────────────────────────────────────
+export const campaignApi = {
+  getAll: async () => {
+    const data = await apiRequest('/campaigns');
+    return data || [];
+  },
+
+  getActive: async () => {
+    const data = await apiRequest('/campaigns/active');
+    return data;
+  },
+
+  getById: async (id) => {
+    return await apiRequest(`/campaigns/${id}`);
+  },
+
+  create: async (campaign) => {
+    return await apiRequest('/campaigns', { method: 'POST', body: JSON.stringify(campaign) });
+  },
+
+  update: async (id, updates) => {
+    return await apiRequest(`/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+  },
+
+  delete: async (id) => {
+    return await apiRequest(`/campaigns/${id}`, { method: 'DELETE' });
+  },
+};
+
 export default {
   cards: cardApi,
   products: productApi,
@@ -342,6 +371,7 @@ export default {
   games: gameApi,
   site: siteApi,
   images: imageApi,
+  campaigns: campaignApi,
 };
 
 // ─── Contact API ──────────────────────────────────────────────────────────────

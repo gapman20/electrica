@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { cartApi } from '../services/api';
+import { cartApi, campaignApi } from '../services/api';
 import { useUser } from './UserContext';
 
 const CartContext = createContext(null);
@@ -25,9 +25,23 @@ export const CartProvider = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [deliveryOption, setDeliveryOption] = useState('pickup');
+  const [activeCampaign, setActiveCampaign] = useState(null);
   const { user, logout } = useUser();
 
   const GUEST_CART_KEY = 'guest_cart_v1';
+
+  // Load active campaign on mount
+  useEffect(() => {
+    const loadCampaign = async () => {
+      try {
+        const campaign = await campaignApi.getActive();
+        setActiveCampaign(campaign);
+      } catch (error) {
+        console.error('Error loading campaign:', error);
+      }
+    };
+    loadCampaign();
+  }, []);
 
   // Load guest cart from localStorage on init
   const loadGuestCart = useCallback(() => {
@@ -108,7 +122,9 @@ export const CartProvider = ({ children }) => {
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const shippingCost = deliveryOption === 'delivery' ? 150 : 0;
-  const total = subtotal + shippingCost;
+  const discountPercent = activeCampaign?.discountPercent || 0;
+  const discountAmount = (subtotal * discountPercent) / 100;
+  const total = subtotal - discountAmount + shippingCost;
 
   const addItem = useCallback(async (item) => {
     const stock = item.stock || 999;
@@ -232,8 +248,11 @@ export const CartProvider = ({ children }) => {
       items,
       subtotal,
       shippingCost,
+      discountPercent,
+      discountAmount,
       total,
       itemCount,
+      activeCampaign,
       deliveryOption,
       setDeliveryOption,
       isCartOpen,
