@@ -1813,13 +1813,6 @@ body.light-theme .theme-toggle:hover {
   }
 }
 
-@media (max-width: 400px) {
-  .catalog-products.grid,
-  .catalog-products.list {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* Login Page Styles */
 .login-page {
   max-width: 500px;
@@ -5521,3 +5514,22 @@ body.light-theme .countdown-item {
   color: var(--text-primary);
 }
 
+
+/* ============================================
+
+/* ============================================
+   MOBILE OVERRIDES - 2 COLUMNS
+   ============================================ */
+@media (max-width: 600px) {
+  .products-grid,
+  .offers-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  
+  .catalog-products.grid,
+  .catalog-products.list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
