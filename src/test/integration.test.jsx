@@ -1,9 +1,33 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { CartProvider, useCart } from '../context/CartContext.jsx';
+import { UserProvider, useUser } from '../context/UserContext.jsx';
 
-const TestWrapper = ({ children, user = false }) => (
-  <CartProvider user={user}>{children}</CartProvider>
+// Mock the API services
+vi.mock('../services/api', () => ({
+  cartApi: {
+    get: vi.fn(() => Promise.resolve([])),
+    add: vi.fn((item) => Promise.resolve({ id: 'new-id', ...item })),
+    update: vi.fn(() => Promise.resolve({})),
+    remove: vi.fn(() => Promise.resolve(true)),
+    clear: vi.fn(() => Promise.resolve(true)),
+    merge: vi.fn((items) => Promise.resolve(items)),
+  },
+  authApi: {
+    login: vi.fn(() => Promise.resolve({ success: true, user: { id: 'u1', name: 'Test User' } })),
+    logout: vi.fn(),
+    isAuthenticated: vi.fn(() => false),
+  },
+  default: {
+    cart: {},
+    auth: {}
+  }
+}));
+
+const TestWrapper = ({ children }) => (
+  <UserProvider>
+    <CartProvider>{children}</CartProvider>
+  </UserProvider>
 );
 
 const TestConsumerWithAdd = () => {
@@ -16,19 +40,13 @@ const TestConsumerWithAdd = () => {
   );
 };
 
-const TestConsumerWithMerge = () => {
-  const { items, mergeCarts } = useCart();
+const TestMergeFlow = () => {
+  const { items } = useCart();
+  const { login } = useUser();
   return (
     <div>
       <span data-testid="items">{JSON.stringify(items)}</span>
-      <button data-testid="merge" onClick={() => mergeCarts(
-        [{ cardId: 'local1', quantity: 2, price: 10 }],
-        [{ cardId: 'fb1', quantity: 1, price: 20 }]
-      )}>Merge</button>
-      <button data-testid="merge-same" onClick={() => mergeCarts(
-        [{ cardId: 'same1', quantity: 3, price: 10, name: 'Card' }],
-        [{ cardId: 'same1', quantity: 2, price: 10, name: 'Card' }]
-      )}>Merge Same</button>
+      <button data-testid="login" onClick={() => login('test@test.com', 'password')}>Login</button>
     </div>
   );
 };
@@ -36,42 +54,31 @@ const TestConsumerWithMerge = () => {
 describe('Cart merge on login', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
   });
 
-  it('merges local cart with Firebase cart', async () => {
-    render(<TestWrapper user={true}><TestConsumerWithMerge /></TestWrapper>);
-    await act(async () => {
-      screen.getByTestId('merge').click();
-    });
-    await waitFor(() => {
-      const items = JSON.parse(screen.getByTestId('items').textContent);
-      expect(items.length).toBe(2);
-      const localItem = items.find(i => i.cardId === 'local1');
-      expect(localItem.quantity).toBe(2);
-      const fbItem = items.find(i => i.cardId === 'fb1');
-      expect(fbItem.quantity).toBe(1);
-    });
-  });
+  it('merges local cart with server cart', async () => {
+    const { cartApi } = await import('../services/api');
 
-  it('combines quantities for same items', async () => {
-    render(<TestWrapper user={true}><TestConsumerWithMerge /></TestWrapper>);
-    await act(async () => {
-      screen.getByTestId('merge-same').click();
-    });
-    await waitFor(() => {
-      const items = JSON.parse(screen.getByTestId('items').textContent);
-      expect(items.length).toBe(1);
-      expect(items[0].quantity).toBe(5);
-    });
-  });
+    // Setup guest cart
+    localStorage.setItem('guest_cart_v1', JSON.stringify([
+      { cardId: 'local1', quantity: 2, price: 10, name: 'Local Card' }
+    ]));
 
-  it('clears localStorage after merge', async () => {
-    render(<TestWrapper user={true}><TestConsumerWithMerge /></TestWrapper>);
+    render(<TestWrapper><TestMergeFlow /></TestWrapper>);
+
     await act(async () => {
-      screen.getByTestId('merge').click();
+      screen.getByTestId('login').click();
     });
+
     await waitFor(() => {
-      expect(localStorage.getItem('tcg_cart')).toBeNull();
+      // Check if cartApi.add was called for the guest item
+      expect(cartApi.add).toHaveBeenCalledWith(expect.objectContaining({
+        cardId: 'local1',
+        quantity: 2
+      }));
+      // Check if guest cart was cleared
+      expect(localStorage.getItem('guest_cart_v1')).toBe('[]');
     });
   });
 });
@@ -82,8 +89,8 @@ describe('Cart persistence', () => {
   });
 
   it('loads cart from localStorage on init', async () => {
-    localStorage.setItem('tcg_cart', JSON.stringify([{ cardId: 'saved1', quantity: 2, price: 15 }]));
-    render(<TestWrapper user={false}><TestConsumerWithAdd /></TestWrapper>);
+    localStorage.setItem('guest_cart_v1', JSON.stringify([{ cardId: 'saved1', quantity: 2, price: 15 }]));
+    render(<TestWrapper><TestConsumerWithAdd /></TestWrapper>);
     await waitFor(() => {
       const items = JSON.parse(screen.getByTestId('items').textContent);
       expect(items.length).toBe(1);

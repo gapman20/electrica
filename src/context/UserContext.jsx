@@ -32,12 +32,12 @@ export const UserProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const result = await authApi.login(email, password);
-      if (result.success) {
+      if (result?.success) {
         setUser(result.user);
         loginCallbacks.forEach(cb => cb(result.user));
         return result;
       }
-      return result;
+      return result || { success: false };
     } catch (e) {
       console.error('Login error:', e);
       return { success: false, error: e.message };

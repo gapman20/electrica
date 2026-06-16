@@ -2,6 +2,20 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { OrderProvider, useOrder } from '../context/OrderContext.jsx';
 
+// Mock the API services
+vi.mock('../services/api', () => ({
+  orderApi: {
+    create: vi.fn((data) => Promise.resolve({ id: 'order-123', ...data })),
+    lookup: vi.fn(() => Promise.resolve(null)),
+    getById: vi.fn(() => Promise.resolve(null)),
+    getMyOrders: vi.fn(() => Promise.resolve([])),
+    updateStatus: vi.fn(() => Promise.resolve({})),
+  },
+  default: {
+    orders: {}
+  }
+}));
+
 const TestWrapper = ({ children }) => (
   <OrderProvider>{children}</OrderProvider>
 );
